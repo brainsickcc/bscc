@@ -1,0 +1,108 @@
+-- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
+
+PRAGMA datarecords
+PRAGMA genlinepragmas
+
+optpragmas
+{
+-- Copyright © 2012 Iain Nicol
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Affero General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+-- | Symbol (identifier) tables.
+
+-- This comment separates above doc comment and UUAGC-inserted comment
+}
+
+MODULE {Bscc.Symbol.Table}
+-- Exports
+{
+Symbol (..),  -- $Symbol
+SymbolTable,  -- $SymbolTable
+empty,
+insert,
+lookup,
+union,
+toSymbolTable
+}
+-- Imports
+{
+import Prelude hiding (lookup)
+
+import Bscc.Ast.WithSem
+import Bscc.Symbol.Name (normalized, SymbolName)
+
+import qualified Data.Map        -- For UUAGC-generated code for MAPs.
+import qualified Data.Map as Map -- Shorter alias, for our code.
+}
+
+
+DERIVING *: Show
+
+{
+-- $Symbol
+-- A symbol, a.k.a. an identifier.  This type unifies the various
+-- individual types of symbols into one type, such that a `SymbolTable'
+-- type can be defined.
+}
+DATA Symbol
+   | SymbolProc  proto: SProcPrototype
+
+-- Ability to extract a name from the various types of symbols.
+ATTR Symbol [ | | name: SymbolName ]
+
+SEM Symbol
+  | SymbolProc  lhs.name = name_SProcPrototype_SProcPrototype @proto
+
+
+{
+-- $SymbolTable
+-- Type of a symbol table.  This type (including its associated
+-- functions) is not designed to be used as a global symbol table.
+-- Rather, each scope requires its own symbol table.
+}
+-- Consecutive `Symbol's, within a list of the image of the map, are
+-- always in decreasing or equal precedence.
+TYPE SymbolTable = MAP {SymbolName} {[Symbol]}
+
+{
+-- | /O(1)/.  The empty symbol table.
+empty :: SymbolTable
+empty = Map.empty
+
+-- | Insert a symbol into a symbol table.  This never replaces an
+-- existing symbol: the returned table is always larger.
+--
+-- The inserted symbol has the highest possible precedence.
+insert :: Symbol -> SymbolTable -> SymbolTable
+insert sym = Map.insertWith (flip (++)) (symName sym) [sym]
+  where symName sym = name_Syn_Symbol $ wrap_Symbol (sem_Symbol sym) Inh_Symbol
+
+lookup :: SymbolName -> SymbolTable -> Maybe Symbol
+lookup n t = case Map.lookup n t of
+               Nothing -> Nothing
+               Just xs -> Just $ head xs
+
+-- | Union two symbol tables.  Symbols from the left take precedence.
+union :: SymbolTable -> SymbolTable -> SymbolTable
+union = Map.unionWith (++)
+
+-- | Create a symbol table from a list of uniquely-named symbols.
+toSymbolTable :: [Symbol] -> SymbolTable
+-- Implementation detail: where there are name clashes (which we
+-- publically don't support), symbols later in the list have higher
+-- precedence (foldr).
+toSymbolTable syms = foldr insert empty syms
+}

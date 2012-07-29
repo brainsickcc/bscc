@@ -1,0 +1,32 @@
+Copyright © 2012 Iain Nicol
+See the end of the file for license conditions.
+
+
+This directory contains a slight twist on the classic Hello World
+program.  It is ``awkward'' because the implementation is needlessly
+split across two files and two procedures.
+
+Compilation:
+  $ bscc -o awkward.exe main.bas showmsgbox.bas
+
+Running:
+  $ wine awkward.exe
+Per the main bscc README, running will fail unless libbsa.dll has been
+placed into this directory next to the .exe file.
+
+
+This file, main.bas, and showmsgbox.bas are licensed under the following
+license.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

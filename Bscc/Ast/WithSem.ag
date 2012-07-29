@@ -1,0 +1,108 @@
+-- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
+
+PRAGMA datarecords
+PRAGMA genlinepragmas
+
+optpragmas
+{
+-- Copyright © 2012 Iain Nicol
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Affero General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+-- (Just below is the module-level documentation.  However, we cannot
+-- make it a Haddock comment because that would cause compile failures
+-- when we are INCLUDEd from another .ag file with its own doc comment.)
+
+-- Abstract syntax tree with information from semantic analysis
+-- ("Bscc.Sem"), such as type information.
+--
+-- Most data types and constructors here correspond to those in
+-- "Bscc.Ast.Plain", except that this module prefixes such with \"S\"
+-- for \"Semantics\".
+}
+
+MODULE {Bscc.Ast.WithSem}
+-- Exports
+{
+SProject (..),
+SModules, SModule (..),
+SProcs, SProc (..),
+SProcPrototype (..),       -- $SProcPrototype
+SArgDefs, SArgDef (..),
+SType (..),
+SProcRetType,              -- $SProcRetType
+SInProcStmts, SInProcStmt (..),
+SExprs, SExpr (..)
+}
+-- Imports
+{
+import Bscc.Symbol.Name (SymbolName)
+}
+
+
+DERIVING *: Show
+
+DATA SProject
+   | SProject  modules: SModules  name: SymbolName
+
+TYPE SModules = [SModule]
+
+DATA SModule
+   | SBasModule  path: FilePath  procs: SProcs  name: SymbolName
+
+TYPE SProcs = [SProc]
+
+DATA SProc
+   | SProc  proto: SProcPrototype  body: SInProcStmts
+
+{
+-- $SProcPrototype
+-- Although the language we compile has no prototypes for functions or
+-- other procedures, pretend that it does.  Essentially, this structure
+-- contains the non-body information about a procedure.
+}
+DATA SProcPrototype
+   | SProcPrototype  name: SymbolName  argDefs: SArgDefs  retType: SProcRetType
+                     -- Project and Module where the implementation of
+                     -- the procedure resides.
+                     implProject: SymbolName  implModule: SymbolName
+
+-- This lets use {Data.Set.Set SProcPrototype}.
+DERIVING SProcPrototype SArgDefs SArgDef SType: Eq, Ord
+
+TYPE SArgDefs = [SArgDef]
+
+DATA SArgDef
+   | SArgDef  name: SymbolName  ty: SType
+
+DATA SType
+   | SString
+
+{
+-- $SProcRetType
+-- Return type of a procedure.  A `Bscc.Ast.Plain.Sub' has `Nothing'; a
+-- Function would have the the appropriate @`Just' foo@.
+}
+TYPE SProcRetType = MAYBE SType
+
+TYPE SInProcStmts = [SInProcStmt]
+
+DATA SInProcStmt
+   | SCall  proc: SProcPrototype  args: SExprs
+
+TYPE SExprs = [SExpr]
+
+DATA SExpr
+   | SStringLit  val: String  ty: SType

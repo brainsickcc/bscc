@@ -1,0 +1,106 @@
+Compilation and installation guide
+
+Copyright © 2012 Iain Nicol
+See the end of the file for license conditions.
+
+
+This program is written in Haskell, and like many programs written in
+Haskell it uses the Cabal build system.  Generic instructions for
+installing Cabal packages are available at
+<http://www.haskell.org/haskellwiki/Cabal/How_to_install_a_Cabal_package>;
+however, the following instructions contain some specific, useful,
+information.
+
+These instructions should work on modern Unix-like systems.
+
+First, because this program is written in Haskell, you should install a
+Haskell compiler.  GHC is known to work.  Next, because this program
+uses the Cabal build system, you should ensure that the cabal-install
+program is installed.  Once cabal-install is installed, ensure its
+package list is up-to-date by running the command
+  $ cabal update
+
+Install the program help2man.
+
+Next, run the following command in this directory.  This will configure,
+compile, and install this program's dependencies; then it will
+configure, compile, and install this program:
+  $ cabal install
+By default, Cabal installs programs such as this one to the directory
+~/.cabal/bin.
+
+bscc has runtime dependencies which also need installed.  See the
+README.
+
+Observe that the ``cabal install'' command above had the effect of
+configuring, compiling, and installing dependencies for this program, as
+well as configuring, compiling, and installing this program.  That is a
+lot for a single command to do.  With other build systems sometimes the
+commands are at a finer granulity.  You install the dependencies first,
+and then you configure, compile, and install the program itself, with
+each such step explicit.  Perhaps you appreciate such flexibility.
+
+If so, what you /should/ be able to do is run the individual commands
+  $ cabal configure
+  $ cabal build
+  $ cabal install
+to configure, compile, and install this program.  The ``cabal
+configure'' command /should/ error and tell you if any dependencies are
+missing.  To install each missing dependency foo, you would use the
+command ``cabal install foo'', or ``cabal install foo==x.y.z'' to
+specify a particular version.  However, because Setup.hs itself has
+dependencies, until Setup.hs' dependencies are installed ``cabal
+configure'' does not work properly.  As such, you must first install the
+dependencies of Setup.hs before running the three individual cabal
+commands.  Installing Setup.hs' dependencies is easy to do by running
+the generic ``cabal install'' command, though doing so probably misses
+the point.
+
+
+bscc comes with a test suite.  You can run the test suite as follows.
+Execute the commands
+  $ cabal configure --enable-tests
+  $ cabal build
+  $ cabal test
+The text in the previous section, about the fact that ``cabal
+configure'' command might fail before some dependencies have been
+installed, applies here.
+
+The test suite requires HTF to build.
+
+The ``cabal test'' runs the actual tests.  It provides a summary of the
+test results, as well as reporting any failures in detail.
+
+
+If you wish to create a source distribution tarball, then please note
+the following.  Usually for a Cabal package you can run
+  $ cabal sdist
+to create the tarball.  However, for this program, that will not work
+properly.  cabal-install does not run the custom hooks in Setup.hs; see
+<https://github.com/haskell/cabal/issues/403>.  Because of this, please
+instead run the command
+  $ runhaskell ./Setup.hs sdist
+Because Setup.hs has dependencies, this might not succeed unless you
+have previously successfully configured this program, as above by either
+doing ``cabal configure'' or ``cabal install''.
+
+To build and install source-code documentation, run
+  $ cabal install --enable-documentation --haddock-executables
+The output of the command, near the end, will tell you where the created
+documentation was written to.  However, the command will probably fail
+unless you have successfully installed the dependencies, as above,
+required to build the program.
+
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

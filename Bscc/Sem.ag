@@ -1,0 +1,165 @@
+-- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
+
+PRAGMA genlinepragmas
+
+optpragmas
+{
+-- Copyright © 2012 Iain Nicol
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Affero General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+-- | Semantic analysis.
+
+-- This comment separates above doc comment and UUAGC-inserted comment
+}
+
+MODULE {Bscc.Sem}
+-- Exports
+{
+semAnalysis
+}
+-- Imports
+{
+import Bscc.Ast.Plain
+import Bscc.Ast.WithSem
+import Bscc.Symbol.Name (mkSymbolName, SymbolName)
+import Bscc.Symbol.Table as SymTable
+
+import Data.Char (isAscii, toLower)
+import System.FilePath (takeBaseName)
+}
+
+INCLUDE "Ast/Plain.ag"
+INCLUDE "Ast/WithSem.ag"
+
+
+{
+-- | Perform semantic analysis.  Resolve identifiers.  Should resolve
+-- and check types, but doesn't fully yet (for example, should check the
+-- number and types of function call parameters).
+--
+-- Can `error'.
+semAnalysis :: Project -> SProject
+semAnalysis t = typedAst_Syn_Project $ wrap_Project (sem_Project t) Inh_Project
+}
+
+-- * This section is the boring and straightforward part of the
+-- transformation.
+
+ATTR Project [ | | typedAst: SProject ]
+SEM Project
+  | Project  lhs.typedAst = SProject @modules.typedAst @name
+
+ATTR Modules [ | | typedAst USE {:} {[]}: SModules ]
+ATTR Module  [ | | typedAst: SModule ]
+SEM Module
+  | BasModule  lhs.typedAst = SBasModule @path @procs.typedAst @loc.name
+               loc.name' = takeBaseName @path
+               loc.name = mkSymbolName (if null @loc.name'
+                                        then error "file has no module name: "
+                                             ++ @path
+                                        else @loc.name')
+
+ATTR Procs [ | | typedAst USE {:} {[]}: SProcs ]
+ATTR Proc  [ | | typedAst: SProc  proto: SProcPrototype ]
+
+SEM Proc
+  | Sub  lhs.typedAst = SProc @loc.proto @body.typedAst
+         loc.proto = SProcPrototype @name
+                                    @argDefs.typedAst  Nothing
+                                    @lhs.inProject @lhs.inModule
+
+
+ATTR ArgDefs [ | | typedAst USE {:} {[]}: SArgDefs ]
+ATTR ArgDef  [ | | typedAst: SArgDef ]
+SEM ArgDef
+  | ArgDef  lhs.typedAst = SArgDef @name @ty.typedAst
+
+ATTR Type [ | | typedAst: SType ]
+SEM Type
+  | String  lhs.typedAst = SString
+
+ATTR InProcStmts [ | | typedAst USE {:} {[]}: SInProcStmts ]
+ATTR InProcStmt  [ | | typedAst: SInProcStmt ]
+SEM InProcStmt
+  | Call  lhs.typedAst = SCall @loc.foundCalleeProto @loc.args
+          loc.maybeFoundCallee = SymTable.lookup @fn
+                                                 @lhs.symbolTable
+          loc.foundCalleeProto = let Just sym = @loc.maybeFoundCallee
+                                 in SymTable.proto_Symbol_SymbolProc sym
+          -- Convert each Expr in our list of provided arguments to a
+          -- SExpr, using what is defined in the "SEM Expr" section).
+          loc.args = map (\e -> typedAst_Syn_Expr (wrap_Expr (sem_Expr e)
+                                                             Inh_Expr))
+                         @args.self
+ATTR Exprs Expr [ | | self: SELF ]
+
+ATTR Expr [ | | typedAst: SExpr ]
+SEM Expr
+  | StringLit  lhs.typedAst = SStringLit @val SString
+
+
+-- * Here beings the magic: the construction of the symbol table, and
+-- other symbol-information jazz.
+
+-- How does the symbol table magic work?  Every Module pushes up
+-- (synthesized attribute: `exportedSymbols') a collection of symbols it
+-- exports, by which we mean are visible outside of its own file.  These
+-- symbol collections are only useful for one thing.  At the project
+-- level, these are combined with external symbols such as ones from the
+-- standard library.  This defines a Project level symbol table, which
+-- is then pushed down (inherited attribute).  A symbol table (attribute
+-- name: `symbolTable') is then built for each scope, with symbols
+-- defined within each file, whether exported or not, taking precedence
+-- over the globally-inherited symbols.
+--
+-- We keep track of which Project (inProject) or Module (inModule) being
+-- analyzed.  For both semantic analysis and codegen we need to know
+-- where symbols (and their implementation or storage, etc.) reside.
+
+ATTR Project        [ | | symbolTable: {SymbolTable} ]
+ATTR Modules Module Procs Proc [ inProject: SymbolName | | ]
+SEM Project
+  | Project   -- Add in symbols from the standard library (libbsa) to
+              -- those exported from the source files of the project.
+             loc.symbolTable = @modules.exportedSymbols
+                               `SymTable.union` libbsaProtos
+             modules.symbolTable = @loc.symbolTable
+             modules.inProject = @name
+
+{
+-- | Symbols exported from the standard library (libbsa).
+libbsaProtos = toSymbolTable $ map SymbolProc procs
+  where procs = [SProcPrototype (mkSymbolName "MsgBox")
+                                [SArgDef (mkSymbolName "Prompt") SString]
+                                Nothing (mkSymbolName "VBA")
+                                (mkSymbolName "Interaction")]
+}
+
+ATTR Modules Module Procs Proc
+     InProcStmts InProcStmt [ symbolTable: {SymbolTable} | | ]
+-- Implicit SEM: the symbolTable is inherited all the way down.
+
+ATTR Modules [ | | exportedSymbols
+                   USE {`SymTable.union`} {SymTable.empty}: {SymbolTable} ]
+ATTR Module Procs [ | | exportedSymbols: {SymbolTable} ]
+SEM Procs
+  | Cons  lhs.exportedSymbols = SymTable.insert (SymbolProc @hd.proto)
+                                                 @tl.exportedSymbols
+  | Nil   lhs.exportedSymbols = SymTable.empty
+
+ATTR Procs Proc [ inModule: SymbolName | | ]
+SEM Module
+  | BasModule  procs.inModule = @loc.name

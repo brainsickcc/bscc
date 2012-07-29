@@ -1,0 +1,122 @@
+-- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
+
+PRAGMA datarecords
+PRAGMA genlinepragmas
+
+optpragmas
+{
+-- Copyright © 2012 Iain Nicol
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Affero General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+-- (Just below is the module-level documentation.  However, we cannot
+-- make it a Haddock comment because that would cause compile failures
+-- when we are INCLUDEd from another .ag file with its own doc comment.)
+
+-- A plain Abstract syntax tree, such as a parse result.
+-- cf. "Bscc.Ast.WithSem".
+--
+-- Most of the AST datatypes should hopefully be self explanatory.
+}
+
+MODULE {Bscc.Ast.Plain}
+-- Exports
+{
+
+Project (..),                  -- $Project
+Modules, Module (..),          -- $Module
+Procs, Proc (..),              -- $Proc
+ArgDefs, ArgDef (..),          -- $ArgDef
+Type (..),                     -- $Type
+InProcStmts, InProcStmt (..),  -- $InProcStmt
+Exprs, Expr (..)               -- $Expr
+}
+-- Imports
+{
+import Bscc.Symbol.Name
+}
+
+
+DERIVING *: Show
+
+{
+-- $Project
+-- A project is a collection of source files which compile into a single
+-- executable.  For each program to be compiled, this is the type of
+-- the root node.
+}
+DATA Project
+   | Project  modules: Modules  name: SymbolName
+
+TYPE Modules = [Module]
+
+{
+-- $Module
+-- A module, or a (parsed) source file.
+--
+-- `BasModule': a \".bas\" file module.
+}
+DATA Module
+   | BasModule  path: FilePath  procs: Procs
+
+TYPE Procs = [Proc]
+
+{
+-- $Proc
+-- A procedure.
+--
+-- `Sub': A Sub has no return type.
+}
+-- We refuse to derive Eq for Proc here; two procedures can have the
+-- same name and yet be different procedures in different modules.
+DATA Proc
+   | Sub  name: SymbolName  argDefs: ArgDefs  body: InProcStmts
+
+TYPE ArgDefs = [ArgDef]
+
+{
+-- $ArgDef
+-- Defines an argument accepted by a `Proc'.
+}
+DATA ArgDef
+   | ArgDef  name: SymbolName  ty: Type
+
+{
+-- $Type
+-- Represents a data type.  Remember, the type represented is a BASIC
+-- type, not a Haskell type.
+}
+DATA Type
+   | String
+
+TYPE InProcStmts = [InProcStmt]
+
+{
+-- $InProcStmt
+-- A statement inside a `Proc'.
+
+-- `Call': a Call statement
+}
+DATA InProcStmt
+   | Call  fn: SymbolName  args: Exprs
+
+TYPE Exprs = [Expr]
+
+{
+-- $Expr
+-- An expression.
+}
+DATA Expr
+   | StringLit  val: String

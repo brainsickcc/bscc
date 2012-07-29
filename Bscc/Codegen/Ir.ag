@@ -1,0 +1,323 @@
+-- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
+
+PRAGMA genlinepragmas
+
+optpragmas
+{
+-- Copyright © 2012 Iain Nicol
+
+-- This program is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Affero General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Affero General Public License for more details.
+--
+-- You should have received a copy of the GNU Affero General Public License
+-- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+-- | Generation of Intermediate Representation (IR) code.
+
+-- This comment separates above doc comment and UUAGC-inserted comment
+}
+
+MODULE {Bscc.Codegen.Ir}
+-- Exports
+{
+codegen,
+Ir
+}
+-- Imports
+{
+import Bscc.Ast.WithSem
+import Bscc.Symbol.Name
+
+import Control.Category ((>>>))
+import qualified Data.ByteString as B
+import Data.List (intercalate)
+import qualified Data.Set as Set
+import qualified Data.Text as T
+import Data.Text.Encoding (encodeUtf16BE)
+import Data.Word (Word8, Word16)
+import System.FilePath (takeBaseName, (<.>))
+}
+
+INCLUDE "../Ast/WithSem.ag"
+
+
+{
+-- | IR code generation.
+codegen :: SProject         -- ^ AST with type information.
+        -> [(Ir, FilePath)] -- ^ The `fst' of each list element is IR.
+                            -- The `snd' is a (recommended) relative
+                            -- path to save it to.
+codegen = ir_Syn_SProject . (`wrap_SProject` Inh_SProject) . sem_SProject
+
+-- | Our Intermediate Representation (IR) is textual LLVM IR.
+type Ir = String
+}
+
+-- Functions for composing vaguely-readable `Ir'.
+{
+-- | Join the second and third input parameters, separating by the
+-- first.
+sepBy :: Ir -> Ir -> Ir -> Ir
+sepBy a x y = x ++ a ++ y
+
+-- | Join the two input parameters in order, separing by a newline.
+sepByNl :: Ir -> Ir -> Ir
+sepByNl = sepBy "\n"
+
+-- | Join the two input parameters in order, separating by two newlines.
+sepByNlNl :: Ir -> Ir -> Ir
+sepByNlNl = sepBy "\n\n"
+}
+
+-- Support for UNIQUEREF (generating unique numbers, for labels, etc.).
+ATTR SModule SProcs SProc SInProcStmts SInProcStmt SExprs SExpr
+     [ | counter: Int | ]
+SEM SModules
+  | Cons  hd.counter = 1
+{
+-- | Function with required named and behaviour, per the UUAGC manual,
+-- for UNIQUEREF support.
+nextUnique :: Int -> (Int, Int)
+nextUnique n = (n + 1, n)
+}
+
+
+-- * Here we have the main, reasonably straightforward (famous last
+-- words), section of code for IR generation
+
+ATTR SProject     [ | | ir: {[(Ir, FilePath)]} ]
+ATTR SModules     [ | | ir USE {:} {[]}: {[(Ir, FilePath)]} ]
+ATTR SModule      [ | | ir: {(Ir, FilePath)} ]
+ATTR SProcs       [ | | ir USE {`sepByNlNl`} {""}: Ir ]
+ATTR SProc SProcPrototype SArgDefs SArgDef SType SProcRetType [ | | ir: Ir ]
+ATTR SInProcStmts [ | | ir USE {`sepByNl`} {""}: Ir ]
+ATTR SInProcStmt SExprs SExpr                                 [ | | ir: Ir ]
+
+SEM SProject
+  | SProject  lhs.ir = @modules.ir
+
+SEM SModule
+  | SBasModule  lhs.ir = (@loc.fileLevelDecls ++ "\n" ++ @procs.ir,
+                          takeBaseName @path <.> "ll")
+                loc.fileLevelDecls = @loc.declsUsedNonLocalProcs ++ "\n" ++
+                                     @procs.fileLevelDecls
+                loc.declsUsedNonLocalProcs =
+                    (unlines .
+                    map (procProtoGetDeclIr @lhs.inProject @name) .
+                    Set.elems) @procs.usedNonLocalProcs
+{
+-- | Calling a procedure defined in another file requires a declaration
+-- in the file you are generating code for.  This function takes the
+-- name of the Project and then the Module containing the call,
+-- and additionally the prototype of the called procedure.  Returns the
+-- required declaration.
+procProtoGetDeclIr :: SymbolName -> SymbolName -> SProcPrototype -> Ir
+procProtoGetDeclIr inProject inModule =  declaration_Syn_SProcPrototype .
+                                         (`wrap_SProcPrototype` inh) .
+                                         sem_SProcPrototype
+  where inh = Inh_SProcPrototype { inProject_Inh_SProcPrototype = inProject,
+                                   inModule_Inh_SProcPrototype = inModule }
+}
+
+ATTR SProcs SProc SInProcStmts
+     SInProcStmt SExprs [ | | fileLevelDecls USE {++} {""}: Ir ]
+
+SEM SProc
+  | SProc  lhs.ir =
+    {
+      "define " ++ @proto.ir ++ "\n" ++
+      "{\n" ++
+      @body.ir ++
+      "ret " ++ @loc.retTypeGetDefaultVal @proto.retType ++ "\n" ++
+      "}\n"
+    }
+           loc.retTypeGetDefaultVal = defaultVal_Syn_SProcRetType .
+                                      (`wrap_SProcRetType` Inh_SProcRetType) .
+                                      sem_SProcRetType
+           loc.retType = @proto.retType
+
+ATTR SProcPrototype [ | | declaration: Ir  nameAndRetType: Ir
+                          retType: SProcRetType ]
+SEM SProcPrototype
+  | SProcPrototype
+      -- The declaration is necessary in a file calling this procedure,
+      -- if the file calling this function is different from the one
+      -- containing its implementation.
+      lhs.declaration = "declare" ++ @loc.linkage ++ @loc.ir
+      -- Standard library is compiled to a .dll.
+      loc.linkage = if @implProject == vbaProjectName then " dllimport "
+                                                      else " "
+      -- Used locally, and also when the implementation of our procedure
+      -- is defined.
+      loc.ir = @loc.nameAndRetType ++ @argDefs.ir
+      -- Used locally, and when we are called.
+      loc.nameAndRetType = "x86_stdcallcc " ++ @retType.ir ++ " "
+                           ++ procName @self
+      lhs.retType = @retType.self
+ATTR SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
+     [ | | self: SELF ]
+{
+procName :: SProcPrototype -> Ir
+procName SProcPrototype {implProject_SProcPrototype_SProcPrototype =
+                           implProject,
+                         name_SProcPrototype_SProcPrototype = name}
+         | implProject == vbaProjectName = "@" ++ raw name
+         | otherwise = "@proc_" ++ normalized name
+
+-- | The name of the standard library Project (\"VBA\") as a `SymbolName'.
+vbaProjectName :: SymbolName
+vbaProjectName = mkSymbolName "VBA"
+}
+
+-- Join list elements (in the SArgDefs case, where the list is a list of
+-- SArgDef.ir, etc.), separating the elements by a comma.  The result of
+-- that is then surrounded by round brackets.
+ATTR SArgDefs SExprs [ | | privateAccum: {[Ir]} ]
+SEM SArgDefs SExprs
+  -- Note that privateAccum has to be a public (non-local) attribute so
+  -- we can use it as "@tl.privateAccum".  Nor could we do a simple
+  -- "ATTR ... [ | | ir USE {`sepByComma`}" to do the comma separation,
+  -- because we would end up with trailing commas.
+  | Cons  loc.privateAccum = @hd.ir : @tl.privateAccum
+          lhs.ir = "(" ++ intercalate ", " @loc.privateAccum ++ ")"
+  | Nil   loc.privateAccum = []
+          lhs.ir = "()"
+
+SEM SArgDef
+  | SArgDef  lhs.ir = @ty.ir
+
+ATTR SType [ | | defaultVal: Ir ]
+SEM SType
+  | SString  loc.ir = "i16*"
+             -- We always include the type with the default
+             -- (uninitialized) value, because LLVM IR requires explicit
+             -- type information.
+             lhs.defaultVal = @loc.ir ++ " null"
+
+ATTR SProcRetType [ | | defaultVal: Ir ]
+SEM SProcRetType
+  | Just     lhs.ir = @just.ir
+             lhs.defaultVal = @just.defaultVal
+  | Nothing  lhs.ir = "void"
+             lhs.defaultVal = "void"
+
+SEM SInProcStmt
+  | SCall  lhs.ir = "call " ++ @proc.nameAndRetType ++ @args.ir
+
+ATTR SExpr [ | | fileLevelDecls: String ]
+SEM SExpr
+  | SStringLit  -- Determine a unique register to store the string
+                -- contents into.
+                loc.uniqueN : UNIQUEREF counter
+                loc.register = "@s" ++ show @loc.uniqueN
+                -- Store the string contents (outwith the procedure).
+                -- Requires determining the type.  We null terminate the
+                -- string.
+                loc.fileLevelDecls =
+    {
+      @loc.register ++ " = private constant " ++ @loc.contentsType ++ " "
+      ++ word16sToIr @loc.word16s ++ "; " ++ show @val ++ "\n"
+    }
+                loc.word16s = hsStringToWord16s @val
+                loc.contentsType =
+                    "[" ++ show (length @loc.word16s) ++ " x i16]"
+                -- Whenever any generated code needs the string, we
+                -- refer to it via a (typed) pointer.
+                lhs.ir =
+    {
+      "i16* getelementptr inbounds (" ++ @loc.contentsType ++ "*" ++ " "
+                                      ++ @loc.register ++ ", "
+                                      ++ "i64 0, i64 0" ++
+                                  ")"
+    }
+
+-- Support functions for translating string literals
+{
+-- | Translate a list of UTF-16 codepoints (with host endianness)
+-- representing the body of a string literal, to the `Ir' form of the
+-- list (which is endian neutral).  Does not add a trailing NUL.
+word16sToIr :: [Word16] -> Ir
+word16sToIr xs = "[" ++ word16sToIr' xs ++ "]"
+  where word16sToIr' = map (\i -> "i16 " ++ show i) >>>
+                       intercalate ", "
+
+-- | Convert a standard Haskell string to a list of UTF-16 codepoints
+-- (with host endianness).  Adds a trailing NUL.
+hsStringToWord16s :: String -> [Word16]
+hsStringToWord16s = T.pack >>> encodeUtf16BE >>> B.unpack >>> takePairs >>>
+                    map (uncurry word8sToWord16) >>>
+                    (++ [0])
+
+-- | Convert a list into a list of pairs, by taking two consecutive
+-- elements at a time.
+takePairs :: [a] -> [(a, a)]
+takePairs [] = []
+takePairs [x] = []
+takePairs (x:y:z) = [(x, y)] ++ takePairs z
+
+-- | Return a 16-bit unsigned number, which was inputted as two octects
+-- in big endian order.
+word8sToWord16 :: Word8 -> Word8 -> Word16
+word8sToWord16 a b = a' * 256 + b'
+    where a' = fromIntegral a :: Word16
+          b' = fromIntegral b :: Word16
+}
+
+
+-- * Here we have to keep track of symbols, for use in the main IR
+-- generation code.
+
+-- Keep track of the Project and the Module we are generating code for.
+-- users.  Note that for symbols such as procedures there is a
+-- distinction between the module (or project) we are generating code
+-- for, and the module (or project) containing the implementation;
+-- cf. the `isModuleLocal' attribute.
+ATTR SModules SModule [ inProject: SymbolName | | ]
+ATTR SProcs SProc SProcPrototype SInProcStmts SInProcStmt
+                      [ inProject: SymbolName
+                        inModule: SymbolName  | | ]
+SEM SProject
+  | SProject  modules.inProject = @name
+
+SEM SModule
+  | SBasModule  procs.inModule = @name
+
+-- Keep track of calls to procedures implemented in files other than the
+-- file containing the call; the prototypes of these functions need
+-- declared in the files calling them.
+ATTR SProcs SProc SInProcStmts [ | | usedNonLocalProcs:
+                                       {Set.Set SProcPrototype} ]
+ATTR SInProcStmt [ | | usedNonLocalProc: {Maybe SProcPrototype} ]
+
+SEM SProcs
+  | Cons  lhs.usedNonLocalProcs = @tl.usedNonLocalProcs `Set.union`
+                                  @hd.usedNonLocalProcs
+  | Nil   lhs.usedNonLocalProcs = Set.empty
+
+SEM SInProcStmts
+  | Cons  lhs.usedNonLocalProcs = case @hd.usedNonLocalProc of
+                                    Just p -> Set.insert p
+                                                         @tl.usedNonLocalProcs
+                                    Nothing -> @tl.usedNonLocalProcs
+  | Nil   lhs.usedNonLocalProcs = Set.empty
+
+SEM SInProcStmt
+  | SCall  lhs.usedNonLocalProc = if @proc.isModuleLocal
+                                  then Nothing
+                                  else Just @proc.self
+
+-- This answers this question: Is the procedure which is being used
+-- (that is, being called) being used in the module (and project)
+-- containing the procedure's implementation?
+ATTR SProcPrototype [ | | isModuleLocal: Bool ]
+SEM SProcPrototype
+  | SProcPrototype  lhs.isModuleLocal = @lhs.inProject == @implProject &&
+                                        @lhs.inModule == @implModule

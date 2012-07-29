@@ -1,0 +1,9 @@
+-*- text -*-
+
+The actual change log is available from the version control system; run:
+  $ git log
+to view it.
+
+When a source distribution tarball is created (see the file INSTALL for
+instructions), the contents of this file are replaced with the version
+control system's log.
