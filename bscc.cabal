@@ -161,3 +161,7 @@ test-suite tests
     temporary == 1.1.* && >= 1.1.2,
     text == 0.11.* && >= 0.11.2,
     uuagc == 0.9.* && >= 0.9.40.3
+  -- Disable optimization.  According to the FAQ of test-framework
+  -- (http://batterseapower.github.com/test-framework/), GHC can
+  -- optimize away calls to `error', causing tests to misbehave.
+  ghc-options: -O0
