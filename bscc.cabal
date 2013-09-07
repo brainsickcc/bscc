@@ -27,7 +27,7 @@ cabal-version:      >=1.10
 -- License is AGPLv3+, but ``cabal check'' doesn't recognise the AGPL.
 license:            OtherLicense
 license-file:       COPYING
-copyright:          © 2012 Iain Nicol
+copyright:          © 2012, 2013 Iain Nicol
 author:             Iain Nicol
 maintainer:         http://www.brainsick.cc/
 category:           Languages
