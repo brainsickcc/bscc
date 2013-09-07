@@ -48,7 +48,6 @@ extra-source-files:
   uuagc_options
 data-dir: .
 data-files:
-  data/help.txt data/version.txt
   libbsccts/startup.ll
 
 source-repository head

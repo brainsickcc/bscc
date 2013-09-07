@@ -19,25 +19,18 @@
 -- --version command line arguments.  It exists as its own module to
 -- factor out code common to "Main" and bscc-help2man-shim.hs; this
 -- keeps the dependencies of the latter as small as possible.
-module Bscc.HelpAndVersion (putHelp, putVersion) where
+module Bscc.HelpAndVersion (
+  helpMessage,
+  versionMessage,
+  putHelp,
+  putVersion) where
 
 import Bscc.ThisPackage
 
-import qualified Data.ByteString as B
-import Data.Text.Encoding (decodeUtf8)
 import Data.Text.Template (Context, substitute)
 import qualified Data.Text as T
-import qualified Data.Text.Lazy.IO as TIO
-
--- | The returned computation reads a textual template file, performs
--- the substitutions, and then prints that to stdout.
-putFileWithSubsts :: FilePath   -- ^ Template ("Data.Text.Template")
-                                --   file
-                     -> Context -- ^ Substitutions to perform
-                     -> IO ()
-putFileWithSubsts path substs = do
-  bs <- B.readFile path
-  TIO.putStr $ substitute (decodeUtf8 bs) substs
+import qualified Data.Text.Lazy as L
+import qualified Data.Text.IO as TIO
 
 -- | Substitutions to make to template files.
 substs :: Context -- equivalently, T.Text -> T.Text
@@ -46,16 +39,40 @@ substs "homepage" = T.pack homepage
 substs "version" = T.pack version
 substs "copyright" = T.pack copyright
 
+helpMessageTemplate :: T.Text
+helpMessageTemplate = T.pack "Usage: bscc [OPTION]... FILE...\n\
+\Compile .bas FILE(s) written in the ``Brainsick'' BASIC dialect\n\
+\\n\
+\Options:\n\
+\  --help         Display a help message and exit\n\
+\  --version      Display version information and exit\n\
+\  -o <file>      Place the output into <file>\n\
+\  -v             Display verbose information\n\
+\\n\
+\Report bugs to: <$bugsUrl>\n\
+\Home page: <$homepage>"
+
+helpMessage :: T.Text
+helpMessage = L.toStrict $ substitute helpMessageTemplate substs
+
+versionMessageTemplate :: T.Text
+versionMessageTemplate = T.pack "bscc (Brainsick code compiler) $version\n\
+\\n\
+\Copyright $copyright\n\
+\\n\
+\License AGPLv3+: GNU Affero GPL version 3 or later <http://gnu.org/licenses/agpl.html>\n\
+\This is free software: you are free to change and redistribute it.\n\
+\There is NO WARRANTY, to the extent permitted by law."
+
+versionMessage :: T.Text
+versionMessage = L.toStrict $ substitute versionMessageTemplate substs
+
 -- | Computation outputs a message to stdout, intended in response to
 -- the --help command line argument.
 putHelp :: IO ()
-putHelp = do
-  path <- getDataFileName "data/help.txt"
-  putFileWithSubsts path substs
+putHelp = TIO.putStrLn helpMessage
 
 -- | Similar to `getHelp', but the message is in response to a --version
 -- command line.
 putVersion :: IO ()
-putVersion = do
-  path <- getDataFileName "data/version.txt"
-  putFileWithSubsts path substs
+putVersion = TIO.putStrLn versionMessage
