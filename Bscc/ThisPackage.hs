@@ -14,7 +14,6 @@
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | In a fairly general way, this module provides details about this
 -- specific package.  It is a bit analogous to config.h in Autotools
@@ -23,13 +22,7 @@
 module Bscc.ThisPackage (bugsUrl, copyright, getDataFileName, homepage,
                          version) where
 
--- Provides an instance of Distribution.Text.Text.
-import Bscc.ThisPackage.Private ()
-
 import Control.Monad (liftM)
-import qualified Distribution.Package as P
-import Distribution.PackageDescription.TH (packageVariable)
-import qualified Distribution.PackageDescription as PD
 
 -- When our code is properly built, Cabal provides functions to
 -- determine the paths of our resources.  When running inside GHCI it
@@ -40,19 +33,19 @@ import qualified Paths_bscc
 
 -- | @bug-reports@ field from our .cabal file.
 bugsUrl :: String
-bugsUrl = $(packageVariable PD.bugReports)
+bugsUrl = "http://www.brainsick.cc/bugs/"
 
 -- | @copyright@ field from our .cabal file.
 copyright :: String
-copyright = $(packageVariable PD.copyright)
+copyright = "© 2012, 2013 Iain Nicol"
 
 -- | @homepage@ field from our .cabal file.
 homepage :: String
-homepage = $(packageVariable PD.homepage)
+homepage = "http://www.brainsick.cc/"
 
 -- | @version@ field from our .cabal file.
 version :: String
-version = $(packageVariable P.packageVersion)
+version = "0.1.0"
 
 -- | The returned computation gives the path which should be used to
 -- access data files from this package.  Use this in preference to the
