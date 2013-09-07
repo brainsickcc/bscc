@@ -39,6 +39,7 @@ import Distribution.Simple.Program (defaultProgramConfiguration,
                                     programLocation, runProgram, simpleProgram)
 import Distribution.Simple.Program.Db (requireProgram)
 import Distribution.Simple.Setup (BuildFlags (buildVerbosity), fromFlag,
+                                  flagToMaybe,
                                   InstallFlags (installVerbosity),
                                   SDistFlags (sDistDirectory, sDistDistPref,
                                               sDistVerbosity))
@@ -73,17 +74,16 @@ myHooks = (uuagcHooks
            `appendInstallHook` manInstallHook
            -- Replace placeholder ChangeLog contents with git log during
            -- sdist.
-           `appendHookedPrograms` [git, tar]
+           `appendHookedPrograms` [git]
            `appendPostSDist` changeLogPostSDist)
 
 -- For every program we define here (to be run at some point), we should
 -- probably use with `appendHookedPrograms'; see that function's
 -- documentation.
-git, help2man, runhaskell, tar :: Program
+git, help2man, runhaskell :: Program
 git = simpleProgram "git"
 help2man = simpleProgram "help2man"
 runhaskell = simpleProgram "runhaskell"
-tar = simpleProgram "tar"
 
 -- | Type of `buildHook' `UserHooks'.
 type BuildHook = PackageDescription -> LocalBuildInfo -> UserHooks ->
@@ -162,31 +162,21 @@ manInstallHook descr buildInfo hooks flags = do
   createDirectoryIfMissing True destMan1Dir
   installOrdinaryFile verbosity builtMan destMan
 
--- | Replace the dummy ChangeLog in the .tar.gz source distribution
--- tarball with a real change log from the version control system.
+-- | Ensures a real change log from the version control system ends up
+-- in the distribution tarball.  Updates the to-be-tarballed directory
+-- tree.
 changeLogPostSDist :: PostSDist
 changeLogPostSDist args flags packageDescr buildInfo = do
-  let compressedTarBallPath = (fromFlag . sDistDistPref) flags </>
-                              tarBallBasename packageDescr <.> ".tar.gz"
   let progsDb = (maybe defaultProgramConfiguration withPrograms buildInfo)
       verbosity = fromFlag $ sDistVerbosity flags
   info verbosity "Replacing dummy ChangeLog with the version control log"
-  (tar', _) <- requireProgram verbosity tar progsDb
   (git', _) <- requireProgram verbosity git progsDb
-  withSystemTempDirectory "sdist." $ \tmpDir -> do
-    let dirName = tarBallBasename packageDescr
-    runProgram verbosity tar' ["-xzf", compressedTarBallPath, "-C", tmpDir]
-    -- Make git format the log a bit like a GNU-style ChangeLog
-    let gitLogParams = ["--date=short",
-                        "--format=%ad  %an  <%ae>%n%n%w(80,8,8)%B"]
-    changeLogContents <- getProgramOutput verbosity git' $
-                         ["log"] ++ gitLogParams
-    let changeLogPath = tmpDir </> dirName </> "ChangeLog"
-    writeFile changeLogPath changeLogContents
-    runProgram verbosity tar' ["-czf", compressedTarBallPath,
-                               "-C", tmpDir, dirName]
-
--- | Basename, without extension, of the source distribution tarball.
--- Equivalent to the private function tarBallName in Cabal.
-tarBallBasename :: PackageDescription -> String
-tarBallBasename = display . packageId
+  let sDistDir = case flagToMaybe $ sDistDirectory flags of
+        Just dir -> dir
+        Nothing -> error "changeLogPostSDist: unknown sdist working directory"
+  -- Make git format the log a bit like a GNU-style ChangeLog
+  let gitLogParams = ["--date=short",
+                      "--format=%ad  %an  <%ae>%n%n%w(80,8,8)%B"]
+  changeLogContents <- getProgramOutput verbosity git' $
+                       ["log"] ++ gitLogParams
+  writeFile (sDistDir </> "ChangeLog") changeLogContents

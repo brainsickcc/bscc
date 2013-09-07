@@ -29,16 +29,9 @@ Next you should install bscc's runtime dependencies.  See the README.
 Now you can run the bscc executable you previously installed.  Consult
 the examples in the documentation folder.
 
-If you wish to create a source distribution tarball, then please note
-the following.  Usually for a Cabal package you can run
+After you have successfully run ``cabal configure'' above, you can
+create a source distribution tarball by running:
   $ cabal sdist
-to create the tarball.  However, for this program, that will not work
-properly.  cabal-install does not run the custom hooks in Setup.hs; see
-<https://github.com/haskell/cabal/issues/403>.  Because of this, please
-instead run the command
-  $ runhaskell ./Setup.hs sdist
-Because Setup.hs has dependencies, this might not succeed unless you
-have previously installed dependencies as above.
 
 
 This program is free software: you can redistribute it and/or modify

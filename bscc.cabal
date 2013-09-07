@@ -23,7 +23,7 @@ description:
   BASIC language.  In particular, bscc aims to be compatible with the
   Visual Basic for Applications (VBA) language dialect.
 version:            0.1.0
-cabal-version:      >=1.10
+cabal-version:      >=1.18
 -- License is AGPLv3+, but ``cabal check'' doesn't recognise the AGPL.
 license:            OtherLicense
 license-file:       COPYING
@@ -114,7 +114,7 @@ executable bscc
     -- Keep dependencies in sync with the test-suite.
     base >= 4.6 && < 5,
     bytestring == 0.10.*,
-    Cabal == 1.16.*,
+    Cabal == 1.18.*,
     containers == 0.5.*,
     derive == 2.5.* && >= 0.2.10,
     directory == 1.2.*,
@@ -135,8 +135,7 @@ executable bscc
     -- Setup.hs.  See that file's `appendHookedPrograms' function.
     git,
     help2man,
-    runhaskell,
-    tar
+    runhaskell
   cpp-options: -DBUILD
 
 
@@ -155,7 +154,7 @@ test-suite tests
     -- Same as for bscc.
     base >= 4.6 && < 5,
     bytestring == 0.10.*,
-    Cabal == 1.16.*,
+    Cabal == 1.18.*,
     containers == 0.5.*,
     derive == 2.5.* && >= 0.2.10,
     directory == 1.2.*,
