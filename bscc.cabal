@@ -112,7 +112,7 @@ executable bscc
     -- Cabal-generated Paths_bscc module imports Data.Version from base.
 
     -- Keep dependencies in sync with the test-suite.
-    base == 4.6.*,
+    base >= 4.6 && < 5,
     bytestring == 0.10.*,
     Cabal == 1.16.*,
     cabal-file-th == 0.2.* && >= 0.2.2,
@@ -154,7 +154,7 @@ test-suite tests
     HTF == 0.11.*,
     silently == 1.2.* && >= 1.2.0.2,
     -- Same as for bscc.
-    base == 4.6.*,
+    base >= 4.6 && < 5,
     bytestring == 0.10.*,
     Cabal == 1.16.*,
     cabal-file-th == 0.2.* && >= 0.2.2,
