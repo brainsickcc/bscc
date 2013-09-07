@@ -20,7 +20,8 @@ Run the following commands in this directory:
   $ cabal configure --enable-tests
   $ cabal build
   $ cabal test
-  $ cabal install --enable-documentation --haddock-executables
+  $ cabal install --enable-documentation --haddock-executables \
+                  --haddock-hyperlink-source
 
 Pay attention to the output of that last command, because it tells you
 where it installed the bscc program to.
