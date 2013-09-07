@@ -19,6 +19,10 @@ uses the Cabal build system, you should ensure that the cabal-install
 program is installed.  Once cabal-install is installed, ensure its
 package list is up-to-date by running the command
   $ cabal update
+Ensure that
+  $ cabal --version
+is at least as new as the version required by the cabal-version field of
+bscc.cabal.
 
 Install the program help2man.
 
