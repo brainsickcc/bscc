@@ -125,7 +125,6 @@ executable bscc
     process == 1.1.*,
     temporary == 1.1.* && >= 1.1.2,
     text == 0.11.* && >= 0.11.2,
-    template == 0.2.*,
     uuagc == 0.9.* && >= 0.9.40.3
   build-tools:
     -- Dependencies listed here---at least the ones Cabal doesn't
@@ -161,5 +160,4 @@ test-suite tests
     process == 1.1.*,
     temporary == 1.1.* && >= 1.1.2,
     text == 0.11.* && >= 0.11.2,
-    template == 0.2.*,
     uuagc == 0.9.* && >= 0.9.40.3
