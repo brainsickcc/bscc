@@ -23,7 +23,6 @@ module Test.Bscc.HelpAndVersion (htf_thisModulesTests) where
 import Bscc.HelpAndVersion (helpMessage, versionMessage)
 
 import Data.List (isInfixOf)
-import qualified Data.Text as T
 import Test.Framework (
   -- .HUnitWrapper
   assertBool_,
@@ -34,9 +33,9 @@ import Test.Framework (
   )
 
 test_helpMessage = do
-  assertBool $ "http://www.brainsick.cc" `isInfixOf` (T.unpack helpMessage)
+  assertBool $ "http://www.brainsick.cc" `isInfixOf` helpMessage
 
 test_versionMessage = do
-  let hasCopyright = "Copyright" `isInfixOf` (T.unpack versionMessage)
-      acksIain = "Iain Nicol" `isInfixOf` (T.unpack versionMessage)
+  let hasCopyright = "Copyright" `isInfixOf` versionMessage
+      acksIain = "Iain Nicol" `isInfixOf` versionMessage
   assertBool $ hasCopyright && acksIain
