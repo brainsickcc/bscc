@@ -20,10 +20,10 @@
 
 module Test.Bscc.HelpAndVersion (htf_thisModulesTests) where
 
-import Bscc.HelpAndVersion (putHelp, putVersion)
+import Bscc.HelpAndVersion (helpMessage, versionMessage)
 
 import Data.List (isInfixOf)
-import System.IO.Silently (capture)
+import qualified Data.Text as T
 import Test.Framework (
   -- .HUnitWrapper
   assertBool_,
@@ -33,17 +33,10 @@ import Test.Framework (
   makeTestSuite, makeUnitTest, TestSuite
   )
 
--- | Tests the `putHelp' function outputs the expected information.
--- Implicitly checks that the underlying data file can be found and
--- read, and that all template substitutions are made.
-test_putHelp = do
-  (stdout, _) <- capture putHelp
-  assertBool $ "Usage: " `isInfixOf` stdout
-  assertBool $ "://www.brainsick.cc/" `isInfixOf` stdout
+test_helpMessage = do
+  assertBool $ "http://www.brainsick.cc" `isInfixOf` (T.unpack helpMessage)
 
--- | Similar to `test_putHelp', but tests `putVersion'.
-test_putVersion = do
-  (stdout, _) <- capture putVersion
-  -- ``--version'' should display the constant program name (as well as
-  -- the varying program version).
-  assertBool $ "Brainsick code compiler" `isInfixOf` stdout
+test_versionMessage = do
+  let hasCopyright = "Copyright" `isInfixOf` (T.unpack versionMessage)
+      acksIain = "Iain Nicol" `isInfixOf` (T.unpack versionMessage)
+  assertBool $ hasCopyright && acksIain
