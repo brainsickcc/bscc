@@ -6,13 +6,14 @@ This directory contains a slight twist on the classic Hello World
 program.  It is ``awkward'' because the implementation is needlessly
 split across two files and two procedures.
 
-Compilation:
+First you must install bscc and its dependencies per the main README and
+INSTALL instructions.
+
+Then, to invoke the bscc compiler:
   $ bscc -o awkward.exe main.bas showmsgbox.bas
 
-Running:
+Finally, to run the program you just compiled:
   $ wine awkward.exe
-Per the main bscc README, running will fail unless libbsa.dll has been
-placed into this directory next to the .exe file.
 
 
 This file, main.bas, and showmsgbox.bas are licensed under the following

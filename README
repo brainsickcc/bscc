@@ -19,18 +19,18 @@ For compilation and installation instructions, see the file INSTALL.
 The file INSTALL also contains instructions on creating a source
 distribution tarball.
 
-bscc has runtime dependencies which you should also install.  These are:
+bscc has runtime dependencies which you should install when instructed
+to do so by the INSTALL file.  The first two are:
   * the commmand line LLVM programs, version 3.0 or later, and
   * the 32-bit (cross) compiler from MinGW-w64, version 4.7.0 or later,
     namely the program i686-w64-mingw32-gcc and its usual libraries.
 These are hopefully available from your package manager.
 
-Additionally, bscc has a runtime dependency on libbsa.  We recommend
-you compile and install libbsa after installing bscc.  libbsa should
-be available whence you obtained bscc.  To be able to run an .exe file
-created by bscc, you should then copy or symlink libbsa.dll into the
-same directory as the .exe file.  After this, the .exe should run
-successfully under Wine.
+The final runtime dependency of bscc is the library libbsa.  libbsa
+should be available whence you obtained bscc.  You must install libbsa,
+not just build it.  Moreover, to be able to run any .exe files compiled
+by bscc you must copy or symlink libbsa.dll into the same directory as
+the .exe file.  After this, the .exe should run successfully under Wine.
 
 See the file NEWS for information on user-visible changes to this
 program.
