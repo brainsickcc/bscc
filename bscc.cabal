@@ -148,7 +148,6 @@ test-suite tests
   build-depends:
     -- Unique to the test suite.
     HTF == 0.11.*,
-    silently == 1.2.* && >= 1.2.0.2,
     -- Same as for bscc.
     base >= 4.6 && < 5,
     bytestring == 0.10.*,
