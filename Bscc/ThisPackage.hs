@@ -22,8 +22,6 @@
 module Bscc.ThisPackage (bugsUrl, copyright, getDataFileName, homepage,
                          version) where
 
-import Control.Monad (liftM)
-
 -- When our code is properly built, Cabal provides functions to
 -- determine the paths of our resources.  When running inside GHCI it
 -- does not.
