@@ -33,14 +33,13 @@ import Bscc.Triplet
 
 import Control.Error.Util (errLn)
 import qualified Control.Lens as L
-import Control.Lens.Operators ((&), (^.), (^?!), (.~), (<>~))
-import Control.Monad (mapM, forM, forM_, when)
-import Data.Either (partitionEithers)
+import Control.Lens.Operators ((^.))
+import Control.Monad (forM, forM_, when)
 import System.Directory (copyFile)
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
 import System.FilePath (takeExtension, (</>))
-import System.IO (hPrint, hPutStr, IOMode (WriteMode), withFile)
+import System.IO (hPutStr, IOMode (WriteMode), withFile)
 import System.IO.Temp (withSystemTempDirectory)
 import Text.Groom (groom)
 

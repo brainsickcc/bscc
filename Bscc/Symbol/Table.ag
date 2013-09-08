@@ -42,7 +42,7 @@ toSymbolTable
 import Prelude hiding (lookup)
 
 import Bscc.Ast.WithSem
-import Bscc.Symbol.Name (normalized, SymbolName)
+import Bscc.Symbol.Name (SymbolName)
 
 import qualified Data.Map        -- For UUAGC-generated code for MAPs.
 import qualified Data.Map as Map -- Shorter alias, for our code.

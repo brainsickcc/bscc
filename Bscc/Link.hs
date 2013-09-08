@@ -18,7 +18,6 @@ module Bscc.Link (link) where
 
 import qualified Bscc.Triplet as Triplet
 
-import System.FilePath (replaceExtension)
 import System.Process (readProcess)
 
 -- | The returned computation links object files to produce an

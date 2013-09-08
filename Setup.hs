@@ -46,10 +46,8 @@ import Distribution.Simple.Setup (BuildFlags (buildVerbosity), fromFlag,
 import Distribution.Simple.UUAGC (uuagcLibUserHook)
 import Distribution.Simple.UserHooks (Args)
 import Distribution.Simple.Utils (info, installOrdinaryFile)
-import Distribution.Text (display)
-import System.Directory (createDirectory, createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>), (<.>))
-import System.IO.Temp (withSystemTempDirectory)
 import UU.UUAGC (uuagc)
 
 -- | Entry point.  Largely this utility's functionality is stock-Cabal

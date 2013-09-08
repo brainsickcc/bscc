@@ -37,7 +37,6 @@ import Bscc.Ast.WithSem
 import Bscc.Symbol.Name (mkSymbolName, SymbolName)
 import Bscc.Symbol.Table as SymTable
 
-import Data.Char (isAscii, toLower)
 import System.FilePath (takeBaseName)
 }
 
