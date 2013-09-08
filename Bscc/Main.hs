@@ -31,6 +31,7 @@ import Bscc.Symbol.Name (mkSymbolName)
 import Bscc.ThisPackage (getDataFileName)
 import Bscc.Triplet
 
+import Control.Error.Util (errLn)
 import Control.Monad (mapM, forM, forM_, when)
 import Data.DeriveTH (derive, makeSet)
 import Data.Either (partitionEithers)
@@ -38,8 +39,7 @@ import System.Directory (copyFile)
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
 import System.FilePath (takeExtension, (</>))
-import System.IO (hPrint, hPutStr, hPutStrLn, IOMode (WriteMode),
-                  stderr, withFile)
+import System.IO (hPrint, hPutStr, IOMode (WriteMode), withFile)
 import System.IO.Temp (withSystemTempDirectory)
 import Text.Groom (groom)
 
@@ -93,14 +93,14 @@ doNormalMode options userFiles = do
     contents <- readFile path
     tokens <- case lexFileContents contents path of
       Left parseError -> do
-        stderrPutStrLn $ "Encountered errors whilst lexing " ++ path ++ ":"
-        stderrPrint parseError
+        errLn $ "Encountered errors whilst lexing " ++ path ++ ":"
+        errLn $ show parseError
         exitFailure
       Right tokens -> return tokens
     case parseFileContents tokens path of
       Left parseError -> do
-        stderrPutStrLn $ "Encountered errors whilst parsing " ++ path ++ ":"
-        stderrPrint parseError
+        errLn $ "Encountered errors whilst parsing " ++ path ++ ":"
+        errLn $ show parseError
         exitFailure
       Right ast -> return ast
   let ast = Project perFileAsts $ mkSymbolName "Project1"
@@ -141,11 +141,3 @@ doNormalMode options userFiles = do
     -- Link the object files into the executable.
     link targetMachine objPaths $ outputName options
   return ()
-
--- | Like `putStrLn', but the output goes to stderr not stdout.
-stderrPutStrLn :: String -> IO ()
-stderrPutStrLn = hPutStrLn stderr
-
--- | Like `print', but the output goes to stderr not stdout.
-stderrPrint :: Show a => a -> IO ()
-stderrPrint = hPrint stderr
