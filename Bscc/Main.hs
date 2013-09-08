@@ -32,8 +32,9 @@ import Bscc.ThisPackage (getDataFileName)
 import Bscc.Triplet
 
 import Control.Error.Util (errLn)
+import qualified Control.Lens as L
+import Control.Lens.Operators ((&), (^.), (^?!), (.~), (<>~))
 import Control.Monad (mapM, forM, forM_, when)
-import Data.DeriveTH (derive, makeSet)
 import Data.Either (partitionEithers)
 import System.Directory (copyFile)
 import System.Environment (getArgs, getProgName)
@@ -44,14 +45,13 @@ import System.IO.Temp (withSystemTempDirectory)
 import Text.Groom (groom)
 
 -- | Result of parsing our command line options, when in `Normal' mode.
-data BsccOptions = BsccOptions { outputName :: FilePath, verbose :: Bool }
+data BsccOptions = BsccOptions { _outputName :: FilePath, _verbose :: Bool }
                    deriving (Show)
--- Automagically provide setters for each field.
-$(derive makeSet ''BsccOptions)
+$(L.makeLenses ''BsccOptions)
 
 -- | Represents successfully parsing zero command line options.
 defaultOptions :: BsccOptions
-defaultOptions = BsccOptions  { outputName = "a.exe", verbose = False }
+defaultOptions = BsccOptions  { _outputName = "a.exe", _verbose = False }
 
 -- | Command line options we declare and define our support for.
 -- Options should be documented in data/help.txt so they appear in
@@ -61,11 +61,11 @@ myOptions = [optionODecl, optionVDecl]
 
 -- | Support for the output object name (\"-o\") option.
 optionODecl :: OptionDecl BsccOptions
-optionODecl = OptionDecl "-o" $ DeclOneSquishableArg setOutputName
+optionODecl = OptionDecl "-o" $ DeclOneSquishableArg (L.set outputName)
 
 -- | Support for the verbose (\"-v\") option.
 optionVDecl :: OptionDecl BsccOptions
-optionVDecl = OptionDecl "-v" $ DeclNoArgs (setVerbose True)
+optionVDecl = OptionDecl "-v" $ DeclNoArgs (L.set verbose True)
 
 -- | Entry point.  Usually compile files, although as applicable handle
 -- special command line arguments such as --help or --version.
@@ -104,19 +104,19 @@ doNormalMode options userFiles = do
         exitFailure
       Right ast -> return ast
   let ast = Project perFileAsts $ mkSymbolName "Project1"
-  when (verbose options) $ do
+  when (options^.verbose) $ do
     putStrLn "AST:"
     putStrLn . groom $ ast
 
   -- Perform semantic analysis.
   let typedAst = semAnalysis ast
-  when (verbose options) $ do
+  when (options^.verbose) $ do
     putStrLn "\nSemantic analysis result:"
     putStrLn $ groom typedAst
 
   -- Generate the Intermediate Representation (IR), namely LLVM IR.
   let irAndPaths = Ir.codegen typedAst
-  when (verbose options) $ do
+  when (options^.verbose) $ do
     putStrLn "\nLLVM IR:"
     putStr $ unlines (map (\(content, path) -> path ++ ":\n" ++ content)
                       irAndPaths)
@@ -139,5 +139,5 @@ doNormalMode options userFiles = do
     objPaths <- mapM (M.codegen targetMachine) llPaths
 
     -- Link the object files into the executable.
-    link targetMachine objPaths $ outputName options
+    link targetMachine objPaths $ options^.outputName
   return ()

@@ -42,7 +42,8 @@ module Bscc.GccArgParse (argsParse, Arguments (..), OptionArgDecl (..),
                          OptionDecl (..), PosArgs, UnparsedArg, UnparsedArgs)
        where
 
-import Data.DeriveTH (derive, makeUpdate)
+import qualified Control.Lens as L
+import Control.Lens.Operators ((&), (^?!), (.~), (<>~))
 import Data.List (stripPrefix)
 import Data.Maybe (mapMaybe)
 
@@ -60,21 +61,20 @@ data Arguments opts = Help     -- ^ \--help was given
                         -- store the option parse result depends upon
                         -- all of the possible options, and the arity
                         -- and types of the options.
-                        options :: opts,
+                        _options :: opts,
                         -- | Positional arguments.
-                        positional :: PosArgs
+                        _positional :: PosArgs
                         }
                     deriving (Show)
--- Automagically provide setters and updaters.
-$(derive makeUpdate ''Arguments)
+$(L.makeLenses ''Arguments)
 
 -- | Input parameter should represent the result of successfully parsing
 -- zero command line options.  Returns a record which represents the
 -- result of successfully parsing zero command line arguments.  See
 -- `options'.
 defaultArguments :: opts -> Arguments opts
-defaultArguments defOptions = Normal { options = defOptions,
-                                       positional = [] }
+defaultArguments defOptions = Normal { _options = defOptions,
+                                       _positional = [] }
 
 -- | Command line arguments which have not yet been parsed.
 type UnparsedArg = String
@@ -140,14 +140,14 @@ argsParse' optionDecls parsed unparsed@(headArg:tailArgs) =
                      else Version
       -- Try the optionDecl-defined options to see if one will accept
       -- this option as its own.
-      _ -> case mapMaybe (tryOption (unparsed, options parsed) optionDecls
+      _ -> case mapMaybe (tryOption (unparsed, parsed ^?! options)) optionDecls
            of
         [] -> error $ "unrecognised option: " ++ headArg
         ((unparsed', updatedOptions):_) ->
           argsParse' optionDecls parsed' unparsed'
-          where parsed' = options_s updatedOptions parsed
+          where parsed' = parsed & options .~ updatedOptions
     -- Take as a positional arg.
-    _ -> argsParse' optionDecls (positional_u (++ [headArg]) parsed) tailArgs
+    _ -> argsParse' optionDecls (parsed & positional <>~ [headArg]) tailArgs
 
 -- | Attempt to parse an option.
 tryOption  :: (UnparsedArgs, opts)
