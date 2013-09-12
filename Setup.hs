@@ -43,6 +43,7 @@ import Distribution.Simple.Setup (BuildFlags (buildVerbosity), fromFlag,
                                   InstallFlags (installVerbosity),
                                   SDistFlags (sDistDirectory, sDistDistPref,
                                               sDistVerbosity))
+import Distribution.Simple.Utils (die)
 import Distribution.Simple.UUAGC (uuagcLibUserHook)
 import Distribution.Simple.UserHooks (Args)
 import Distribution.Simple.Utils (info, installOrdinaryFile)
@@ -184,7 +185,7 @@ changeLogPostSDist args flags packageDescr buildInfo = do
   (git', _) <- requireProgram verbosity git progsDb
   sDistDir <- case flagToMaybe $ sDistDirectory flags of
         Just dir -> mkAbsPathFromCwd dir
-        Nothing -> error "changeLogPostSDist: unknown sdist working directory"
+        Nothing -> die "changeLogPostSDist: unknown sdist working directory"
   -- Make git format the log a bit like a GNU-style ChangeLog
   let gitLogParams = ["--date=short",
                       "--format=%ad  %an  <%ae>%n%n%w(80,8,8)%B"]

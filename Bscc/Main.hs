@@ -94,9 +94,9 @@ doNormalMode :: BsccOptions -- ^ Parsed command line options.
                             --   compilation.
 doNormalMode options userFiles = do
   files <- mapM mkAbsPathFromCwd userFiles
-  when (null files) $ error "no input files"
+  when (null files) $ fatalError "no input files"
   when (any ((/= ".bas") . takeExtension) files) $
-    error "files must be .bas files"
+    fatalError "files must be .bas files"
   let targetMachine = defaultTarget
 
   -- Lex and parse each of the files, and combine the result into one
