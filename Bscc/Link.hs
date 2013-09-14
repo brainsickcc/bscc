@@ -18,6 +18,7 @@ module Bscc.Link (link) where
 
 import qualified Bscc.Triplet as Triplet
 
+import Control.Monad (void)
 import System.Process (readProcess)
 
 -- | The returned computation links object files to produce an
@@ -44,5 +45,5 @@ link target objFiles outputName = do
                  -- console.
                  "-Wl,--subsystem,windows"]
       stdin = []
-  readProcess cmd args stdin
+  void $ readProcess cmd args stdin
   return outputName

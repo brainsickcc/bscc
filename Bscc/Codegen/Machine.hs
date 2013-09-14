@@ -19,6 +19,7 @@ module Bscc.Codegen.Machine (codegen) where
 import qualified Bscc.Triplet as Triplet
 
 import System.FilePath (replaceExtension)
+import Control.Monad (void)
 import System.Process (readProcess)
 
 -- | Code generation.
@@ -44,7 +45,7 @@ toSFile target llFile = do
       cmd = "llc"
       args = ["-mtriple=" ++ Triplet.str target, "-o", sFile, llFile]
       stdin = []
-  readProcess cmd args stdin
+  void $ readProcess cmd args stdin
   return sFile
 
 -- | Assemble.
@@ -59,5 +60,5 @@ toObjFile target sFile = do
       cmd = Triplet.str target ++ "-as"
       args = ["-o", objFile, sFile]
       stdin = []
-  readProcess cmd args stdin
+  void $ readProcess cmd args stdin
   return objFile

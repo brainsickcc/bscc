@@ -34,7 +34,7 @@ import Bscc.Triplet
 import Control.Error.Util (errLn)
 import qualified Control.Lens as L
 import Control.Lens.Operators ((^.))
-import Control.Monad (forM, forM_, when)
+import Control.Monad (forM, forM_, void, when)
 import System.Directory (copyFile)
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
@@ -122,7 +122,7 @@ doNormalMode options userFiles = do
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
-  withSystemTempDirectory (progName ++ ".") $ \tmpDir -> do
+  void $ withSystemTempDirectory (progName ++ ".") $ \tmpDir -> do
     -- Copy across the startup code every program requires.  This is
     -- also in LLVM IR.
     let libbscctsPath = tmpDir </> "libbsccts-startup.ll"
