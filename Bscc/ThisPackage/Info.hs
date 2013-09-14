@@ -19,6 +19,9 @@
 -- of our data resources.
 module Bscc.ThisPackage.Info (bugsUrl, copyright, homepage, version) where
 
+-- We cannot import anything not in base.  This is because we are a
+-- dependency of Bscc.HelpAndVersion.
+
 -- | @bug-reports@ field from our .cabal file.
 bugsUrl :: String
 bugsUrl = "http://www.brainsick.cc/bugs/"
