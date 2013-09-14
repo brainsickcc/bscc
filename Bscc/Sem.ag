@@ -140,6 +140,7 @@ SEM Project
 
 {
 -- | Symbols exported from the standard library (libbsa).
+libbsaProtos :: SymbolTable
 libbsaProtos = toSymbolTable $ map SymbolProc procs
   where procs = [SProcPrototype (mkSymbolName "MsgBox")
                                 [SArgDef (mkSymbolName "Prompt") SString]
