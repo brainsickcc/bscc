@@ -22,7 +22,7 @@ module Main (main) where
 import Bscc.Ast.Plain (Project (..))
 import qualified Bscc.Codegen.Ir as Ir
 import qualified Bscc.Codegen.Machine as M
-import Bscc.GccArgParse
+import Bscc.GccArgParse as A
 import Bscc.HelpAndVersion
 import Bscc.Lex
 import Bscc.Link
@@ -79,9 +79,14 @@ main :: IO ()
 main = do
   args <- getArgs
   case argsParse myOptions defaultOptions args of
-    Help -> putHelp
-    Version -> putVersion
-    Normal options pos -> doNormalMode options pos
+    Left err -> case err of
+      MissingArgumentToOption opt ->
+        error $ "missing parameter to '" ++ A.str opt ++ "'"
+      UnrecognizedOption opt -> fatalError $ "unrecognised option: " ++ opt
+    Right res -> case res of
+      Help -> putHelp
+      Version -> putVersion
+      Normal options pos -> doNormalMode options pos
 
 doNormalMode :: BsccOptions -- ^ Parsed command line options.
                 -> PosArgs  -- ^ List of files to compile.
@@ -152,3 +157,9 @@ doNormalMode options userFiles = do
     -- Link the object files into the executable.
     outputPath <- mkAbsPathFromCwd $ options^.outputName
     link targetMachine objPaths outputPath
+
+fatalError :: String -> IO ()
+fatalError msg = do
+  progName <- getProgName
+  putStrLn $ progName ++ ": " ++ msg
+  exitFailure

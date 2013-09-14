@@ -39,13 +39,13 @@
 -- argument @-afoo@ to be treated the same as a command line of two
 -- arguments @-a foo@.
 module Bscc.GccArgParse (argsParse, Arguments (..), OptionArgDecl (..),
-                         OptionDecl (..), PosArgs, UnparsedArg, UnparsedArgs)
+                         OptionDecl (..), ParseFailure (..), PosArgs,
+                         UnparsedArg, UnparsedArgs)
        where
 
 import qualified Control.Lens as L
-import Control.Lens.Operators ((&), (^?!), (.~), (<>~))
+import Control.Lens.Operators ((&), (^?), (^?!), (.~), (<>~))
 import Data.List (stripPrefix)
-import Data.Maybe (mapMaybe)
 
 -- | Positional command line arguments.
 type PosArgs = [String]
@@ -111,6 +111,11 @@ data OptionArgDecl opts =
     -- command line argument given to the option.
     oneArgOptionUpdater :: (UnparsedArg -> opts -> opts) }
 
+-- | Parse failure.
+data ParseFailure optDecl
+     = MissingArgumentToOption optDecl
+     | UnrecognizedOption UnparsedArg
+
 -- | Parse command line arguments.
 argsParse :: [OptionDecl opts] -- ^ List of declarations of the options
                                --   we support.
@@ -121,33 +126,39 @@ argsParse :: [OptionDecl opts] -- ^ List of declarations of the options
                                --   result of successfully parsing zero
                                --   command line options.
             -> UnparsedArgs    -- ^ Command line arguments to parse.
-            -> Arguments opts  -- ^ Parse result.
+            -- | Parse result.
+            -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
 argsParse optionDecls defaultOptions = argsParse' optionDecls
                                        (defaultArguments defaultOptions)
 
 argsParse' :: [OptionDecl opts]
               -> Arguments opts
               -> UnparsedArgs
-              -> Arguments opts
-argsParse' _ parsed [] = parsed
+              -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
+argsParse' _ parsed [] = Right parsed
 argsParse' optionDecls parsed unparsed@(headArg:tailArgs) =
   case (head headArg) of
     '-' -> case headArg of
       -- Argument begins with a hyphen; treat it as an option.
-      "--help" -> Help
+      "--help" -> Right Help
       "--version" -> if "--help" `elem` tailArgs
-                     then Help
-                     else Version
-      -- Try the optionDecl-defined options to see if one will accept
-      -- this option as its own.
-      _ -> case mapMaybe (tryOption (unparsed, parsed ^?! options)) optionDecls
-           of
-        [] -> error $ "unrecognised option: " ++ headArg
-        ((unparsed', updatedOptions):_) ->
-          argsParse' optionDecls parsed' unparsed'
-          where parsed' = parsed & options .~ updatedOptions
+                     then Right Help
+                     else Right Version
+      _ -> do
+        -- Try the optionDecl-defined options to see if one will accept
+        -- this option as its own.
+        let tryParse = tryOption (unparsed, parsed ^?! options)
+            attemptedParses = map tryParse optionDecls
+        case attemptedParses ^? L.traverse . L._Right of
+          Just (unparsed', updatedOptions) ->
+            argsParse' optionDecls parsed' unparsed'
+            where parsed' = parsed & options .~ updatedOptions
+          Nothing -> case attemptedParses ^? L.traverse . L._Left of
+            Just err -> Left err
+            _ -> Left $ UnrecognizedOption headArg
     -- Take as a positional arg.
     _ -> argsParse' optionDecls (parsed & positional <>~ [headArg]) tailArgs
+
 
 -- | Attempt to parse an option.
 tryOption  :: (UnparsedArgs, opts)
@@ -156,28 +167,28 @@ tryOption  :: (UnparsedArgs, opts)
               --    the options parsed so far [cf. `options']).
               -> OptionDecl opts
               -- ^ Declaration of the option and its effect.
-              -> Maybe (UnparsedArgs, opts)
+              -> Either (ParseFailure (OptionDecl opts)) (UnparsedArgs, opts)
               -- ^ If parsing is successful, we essentially return the
-              --   first parameter updated, lifted into the `Maybe'
-              --   monad.  The updated `UnparsedArgs' is necessarily
-              --   shorter than as inputted.
+              --   first parameter updated, as the `Right'.  The updated
+              --   `UnparsedArgs' is necessarily shorter than as
+              --   inputted.
 tryOption (unparsedArgs, parsedOptions) option = case (argDecl option) of
   DeclNoArgs optionUpdater -> let (hdArg:tlArgs) = unparsedArgs in
     if hdArg == str option
        -- For example, parsing "-v".
-    then Just (tlArgs, optionUpdater parsedOptions)
-    else Nothing
+    then Right (tlArgs, optionUpdater parsedOptions)
+    else Left $ UnrecognizedOption hdArg
   DeclOneSquishableArg optionUpdater -> let (hdArg:tlArgs) = unparsedArgs in
     if hdArg == str option
        -- For example, we're trying to parse a command line of "-o foo"
        -- (where the "-o foo" is interpreted as if it were without the
        -- quotes and written in the shell).
     then (if not . null $ tlArgs
-          then Just (tail tlArgs, optionUpdater (head tlArgs) parsedOptions)
-          else error $ "missing parameter to '" ++ str option ++ "'")
+          then Right (tail tlArgs, optionUpdater (head tlArgs) parsedOptions)
+          else Left $ MissingArgumentToOption option)
     else case stripPrefix (str option) hdArg of
       -- For example, parse "-ofoo" identically to the "-o foo" above.
-      Just hdArgSuffix -> Just (tlArgs,
-                                optionUpdater hdArgSuffix parsedOptions)
+      Just hdArgSuffix -> Right (tlArgs,
+                                 optionUpdater hdArgSuffix parsedOptions)
       -- This isn't our argument to accept.
-      Nothing -> Nothing
+      Nothing -> Left $ UnrecognizedOption hdArg
