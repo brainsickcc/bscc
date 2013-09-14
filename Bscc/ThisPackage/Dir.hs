@@ -19,8 +19,7 @@
 -- specific package.  It is a bit analogous to config.h in Autotools
 -- projects.  Additionally, it provides the means to determine the paths
 -- of our data resources.
-module Bscc.ThisPackage (bugsUrl, copyright, getDataFileName, homepage,
-                         version) where
+module Bscc.ThisPackage.Dir (getDataFileName) where
 
 -- When our code is properly built, Cabal provides functions to
 -- determine the paths of our resources.  When running inside GHCI it
@@ -28,22 +27,6 @@ module Bscc.ThisPackage (bugsUrl, copyright, getDataFileName, homepage,
 #ifdef BUILD
 import qualified Paths_bscc
 #endif
-
--- | @bug-reports@ field from our .cabal file.
-bugsUrl :: String
-bugsUrl = "http://www.brainsick.cc/bugs/"
-
--- | @copyright@ field from our .cabal file.
-copyright :: String
-copyright = "© 2012, 2013 Iain Nicol"
-
--- | @homepage@ field from our .cabal file.
-homepage :: String
-homepage = "http://www.brainsick.cc/"
-
--- | @version@ field from our .cabal file.
-version :: String
-version = "0.1.0"
 
 -- | The returned computation gives the path which should be used to
 -- access data files from this package.  Use this in preference to the

@@ -28,7 +28,7 @@ import Bscc.Link
 import Bscc.Parse
 import Bscc.Sem
 import Bscc.Symbol.Name (mkSymbolName)
-import Bscc.ThisPackage (getDataFileName)
+import Bscc.ThisPackage.Dir (getDataFileName)
 import Bscc.Triplet
 
 import Control.Error.Util (errLn)

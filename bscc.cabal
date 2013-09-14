@@ -78,7 +78,8 @@ executable bscc
     Bscc.Sem
     Bscc.Symbol.Name
     Bscc.Symbol.Table
-    Bscc.ThisPackage
+    Bscc.ThisPackage.Dir
+    Bscc.ThisPackage.Info
     Bscc.Token
     Bscc.Triplet
     -- Cabal User Guide makes explicit that Paths_foo module should be

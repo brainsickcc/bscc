@@ -27,7 +27,7 @@ module Bscc.HelpAndVersion (
 -- depend upon any packages existing.  In particular, if bscc is built
 -- in a sandbox, those sandbox packages will not be available to the
 -- shim.
-import Bscc.ThisPackage
+import Bscc.ThisPackage.Info
 
 helpMessage :: String
 helpMessage = "Usage: bscc [OPTION]... FILE...\n\
