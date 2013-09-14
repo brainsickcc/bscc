@@ -136,6 +136,7 @@ executable bscc
     help2man,
     runhaskell
   cpp-options: -DBUILD
+  ghc-options: -W -Werror
 
 
 test-suite tests
