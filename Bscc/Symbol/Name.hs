@@ -46,5 +46,5 @@ instance Ord SymbolName where
 -- the codegen to use the `raw' as opposed to `normalized' name, for
 -- aesthetic reasons.)
 mkSymbolName :: String -> SymbolName
-mkSymbolName raw = SymbolName (map normalize raw) raw
+mkSymbolName rawName = SymbolName (map normalize rawName) rawName
    where normalize c = if isAscii c then toLower c else c

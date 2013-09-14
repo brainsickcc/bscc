@@ -88,7 +88,7 @@ empty = Map.empty
 -- The inserted symbol has the highest possible precedence.
 insert :: Symbol -> SymbolTable -> SymbolTable
 insert sym = Map.insertWith (flip (++)) (symName sym) [sym]
-  where symName sym = name_Syn_Symbol $ wrap_Symbol (sem_Symbol sym) Inh_Symbol
+  where symName x = name_Syn_Symbol $ wrap_Symbol (sem_Symbol x) Inh_Symbol
 
 lookup :: SymbolName -> SymbolTable -> Maybe Symbol
 lookup n t = case Map.lookup n t of
