@@ -82,8 +82,6 @@ TYPE Procs = [Proc]
 --
 -- `Sub': A Sub has no return type.
 }
--- We refuse to derive Eq for Proc here; two procedures can have the
--- same name and yet be different procedures in different modules.
 DATA Proc
    | Sub  name: SymbolName  argDefs: ArgDefs  body: InProcStmts
 
