@@ -129,7 +129,7 @@ argsParse' :: [OptionDecl opts]
               -> Arguments opts
               -> UnparsedArgs
               -> Arguments opts
-argsParse' optionDecls parsed [] = parsed
+argsParse' _ parsed [] = parsed
 argsParse' optionDecls parsed unparsed@(headArg:tailArgs) =
   case (head headArg) of
     '-' -> case headArg of

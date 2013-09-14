@@ -19,6 +19,8 @@ optpragmas
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
 -- | Generation of Intermediate Representation (IR) code.
 
@@ -260,7 +262,7 @@ hsStringToWord16s = T.pack >>> encodeUtf16BE >>> B.unpack >>> takePairs >>>
 -- elements at a time.
 takePairs :: [a] -> [(a, a)]
 takePairs [] = []
-takePairs [x] = []
+takePairs [_] = []
 takePairs (x:y:z) = [(x, y)] ++ takePairs z
 
 -- | Return a 16-bit unsigned number, which was inputted as two octects

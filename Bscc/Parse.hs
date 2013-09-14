@@ -57,9 +57,9 @@ tokenAccepter :: (TokenNoPos -> Maybe a)  -- ^ This function should
                                           -- returning @Just x@.
                  -> Parser a
 tokenAccepter testFn = token showToken posToken testToken
-  where showToken (pos, tok) = show tok
-        posToken (pos, tok) = pos
-        testToken (pos, tok) = testFn tok
+  where showToken (_pos, tok) = show tok
+        posToken (pos, _tok) = pos
+        testToken (_pos, tok) = testFn tok
 
 -- | Parse an identifier.
 ident :: Parser SymbolName
