@@ -46,6 +46,9 @@ Exprs, Expr (..)               -- $Expr
 -- Imports
 {
 import Bscc.Symbol.Name
+
+import Prelude hiding (FilePath)
+import System.Path (RelFile)
 }
 
 
@@ -69,7 +72,7 @@ TYPE Modules = [Module]
 -- `BasModule': a \".bas\" file module.
 }
 DATA Module
-   | BasModule  path: FilePath  procs: Procs
+   | BasModule  path: RelFile  procs: Procs
 
 TYPE Procs = [Proc]
 

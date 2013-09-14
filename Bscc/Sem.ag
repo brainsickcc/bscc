@@ -39,7 +39,8 @@ import Bscc.Ast.WithSem
 import Bscc.Symbol.Name (mkSymbolName, SymbolName)
 import Bscc.Symbol.Table as SymTable
 
-import System.FilePath (takeBaseName)
+import Prelude hiding (FilePath)
+import System.Path (getPathString, RelFile, takeBaseName)
 }
 
 INCLUDE "Ast/Plain.ag"
@@ -67,10 +68,10 @@ ATTR Modules [ | | typedAst USE {:} {[]}: SModules ]
 ATTR Module  [ | | typedAst: SModule ]
 SEM Module
   | BasModule  lhs.typedAst = SBasModule @path @procs.typedAst @loc.name
-               loc.name' = takeBaseName @path
+               loc.name' = getPathString $ takeBaseName @path
                loc.name = mkSymbolName (if null @loc.name'
                                         then error "file has no module name: "
-                                             ++ @path
+                                             ++ (getPathString @path)
                                         else @loc.name')
 
 ATTR Procs [ | | typedAst USE {:} {[]}: SProcs ]

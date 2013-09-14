@@ -45,7 +45,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf16BE)
 import Data.Word (Word8, Word16)
-import System.FilePath (takeBaseName, (<.>))
+import Prelude hiding (FilePath)
+import System.Path (RelFile, takeBaseName, (<.>))
 }
 
 INCLUDE "../Ast/WithSem.ag"
@@ -54,7 +55,7 @@ INCLUDE "../Ast/WithSem.ag"
 {
 -- | IR code generation.
 codegen :: SProject         -- ^ AST with type information.
-        -> [(Ir, FilePath)] -- ^ The `fst' of each list element is IR.
+        -> [(Ir, RelFile)]  -- ^ The `fst' of each list element is IR.
                             -- The `snd' is a (recommended) relative
                             -- path to save it to.
 codegen = ir_Syn_SProject . (`wrap_SProject` Inh_SProject) . sem_SProject
@@ -95,9 +96,9 @@ nextUnique n = (n + 1, n)
 -- * Here we have the main, reasonably straightforward (famous last
 -- words), section of code for IR generation
 
-ATTR SProject     [ | | ir: {[(Ir, FilePath)]} ]
-ATTR SModules     [ | | ir USE {:} {[]}: {[(Ir, FilePath)]} ]
-ATTR SModule      [ | | ir: {(Ir, FilePath)} ]
+ATTR SProject     [ | | ir: {[(Ir, RelFile)]} ]
+ATTR SModules     [ | | ir USE {:} {[]}: {[(Ir, RelFile)]} ]
+ATTR SModule      [ | | ir: {(Ir, RelFile)} ]
 ATTR SProcs       [ | | ir USE {`sepByNlNl`} {""}: Ir ]
 ATTR SProc SProcPrototype SArgDefs SArgDef SType SProcRetType [ | | ir: Ir ]
 ATTR SInProcStmts [ | | ir USE {`sepByNl`} {""}: Ir ]

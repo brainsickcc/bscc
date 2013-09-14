@@ -18,15 +18,16 @@ module Bscc.Codegen.Machine (codegen) where
 
 import qualified Bscc.Triplet as Triplet
 
-import System.FilePath (replaceExtension)
 import Control.Monad (void)
+import Prelude hiding (FilePath)
+import System.Path (AbsFile, getPathString, replaceExtension)
 import System.Process (readProcess)
 
 -- | Code generation.
 codegen :: Triplet.Triplet  -- ^ Target machine type.
-           -> FilePath      -- ^ Path to the input file, which must be
+           -> AbsFile       -- ^ Path to the input file, which must be
                             --   in the IR ("Bscc.Codegen.Ir").
-           -> IO FilePath   -- ^ The returned computation generates a
+           -> IO AbsFile    -- ^ The returned computation generates a
                             --   \".o\" object file, and returns its
                             --   path.
 codegen target llFile = do
@@ -35,30 +36,31 @@ codegen target llFile = do
 
 -- | Conversion from IR to assembly language for the target.
 toSFile :: Triplet.Triplet  -- ^ Target machine type.
-           -> FilePath      -- ^ Path to the input file, which must be
+           -> AbsFile       -- ^ Path to the input file, which must be
                             --   in the IR ("Bscc.Codegen.Ir").
-           -> IO FilePath   -- ^ The returned computation generates a
+           -> IO AbsFile    -- ^ The returned computation generates a
                             --   \".s\" assembly language file, and
                             --   returns its path.
 toSFile target llFile = do
   let sFile = llFile `replaceExtension` ".s"
       cmd = "llc"
-      args = ["-mtriple=" ++ Triplet.str target, "-o", sFile, llFile]
+      args = ["-mtriple=" ++ Triplet.str target, "-o", getPathString sFile,
+              getPathString llFile]
       stdin = []
   void $ readProcess cmd args stdin
   return sFile
 
 -- | Assemble.
 toObjFile :: Triplet.Triplet  -- ^ Target machine type
-             -> FilePath      -- ^ Path to file in assembly language of
+             -> AbsFile       -- ^ Path to file in assembly language of
                               --   the target machine.
-             -> IO FilePath   -- ^ The returned computation performs
+             -> IO AbsFile    -- ^ The returned computation performs
                               --   assembly, generating a \".o\" object
                               --   file and returning its path.
 toObjFile target sFile = do
   let objFile = sFile `replaceExtension` ".o"
       cmd = Triplet.str target ++ "-as"
-      args = ["-o", objFile, sFile]
+      args = ["-o", getPathString objFile, getPathString sFile]
       stdin = []
   void $ readProcess cmd args stdin
   return objFile

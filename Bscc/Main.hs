@@ -13,6 +13,7 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Main (entry) file for the bscc program.
@@ -35,22 +36,28 @@ import Control.Error.Util (errLn)
 import qualified Control.Lens as L
 import Control.Lens.Operators ((^.))
 import Control.Monad (forM, forM_, void, when)
-import System.Directory (copyFile)
+import Prelude hiding (readFile)
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
-import System.FilePath (takeExtension, (</>))
-import System.IO (hPutStr, IOMode (WriteMode), withFile)
+import System.IO (hPutStr, IOMode (WriteMode))
 import System.IO.Temp (withSystemTempDirectory)
+import System.Path (asRelFile, getPathString, mkAbsPathFromCwd, takeExtension,
+                    (</>))
+import System.Path.Directory (copyFile)
+import System.Path.IO (readFile, withFile)
+
 import Text.Groom (groom)
 
 -- | Result of parsing our command line options, when in `Normal' mode.
-data BsccOptions = BsccOptions { _outputName :: FilePath, _verbose :: Bool }
+data BsccOptions = BsccOptions { _outputName :: FilePath,
+                                 _verbose :: Bool }
                    deriving (Show)
 $(L.makeLenses ''BsccOptions)
 
 -- | Represents successfully parsing zero command line options.
 defaultOptions :: BsccOptions
-defaultOptions = BsccOptions  { _outputName = "a.exe", _verbose = False }
+defaultOptions = BsccOptions  { _outputName = "a.exe",
+                                _verbose = False }
 
 -- | Command line options we declare and define our support for.
 -- Options should be documented in data/help.txt so they appear in
@@ -81,24 +88,27 @@ doNormalMode :: BsccOptions -- ^ Parsed command line options.
                 -> IO ()    -- ^ The returned computation performs
                             --   compilation.
 doNormalMode options userFiles = do
-  when (null userFiles) $ error "no input files"
-  when (any ((/= ".bas") . takeExtension) userFiles) $
+  files <- mapM mkAbsPathFromCwd userFiles
+  when (null files) $ error "no input files"
+  when (any ((/= ".bas") . takeExtension) files) $
     error "files must be .bas files"
   let targetMachine = defaultTarget
 
   -- Lex and parse each of the files, and combine the result into one
   -- AST.
-  perFileAsts <- forM userFiles $ \path -> do
+  perFileAsts <- forM files $ \path -> do
     contents <- readFile path
     tokens <- case lexFileContents contents path of
       Left parseError -> do
-        errLn $ "Encountered errors whilst lexing " ++ path ++ ":"
+        errLn ("Encountered errors whilst lexing " ++ getPathString path ++
+               ":")
         errLn $ show parseError
         exitFailure
       Right tokens -> return tokens
     case parseFileContents tokens path of
       Left parseError -> do
-        errLn $ "Encountered errors whilst parsing " ++ path ++ ":"
+        errLn ("Encountered errors whilst parsing " ++ getPathString path ++
+               ":")
         errLn $ show parseError
         exitFailure
       Right ast -> return ast
@@ -117,16 +127,18 @@ doNormalMode options userFiles = do
   let irAndPaths = Ir.codegen typedAst
   when (options^.verbose) $ do
     putStrLn "\nLLVM IR:"
-    putStr $ unlines (map (\(content, path) -> path ++ ":\n" ++ content)
+    putStr $ unlines (map (\(content, path) -> getPathString path ++ ":\n" ++
+                                               content)
                       irAndPaths)
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
-  void $ withSystemTempDirectory (progName ++ ".") $ \tmpDir -> do
+  void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
+    tmpDir <- mkAbsPathFromCwd tmpDirString
     -- Copy across the startup code every program requires.  This is
     -- also in LLVM IR.
-    let libbscctsPath = tmpDir </> "libbsccts-startup.ll"
-    origLibbscctsPath <- getDataFileName "libbsccts/startup.ll"
+    let libbscctsPath = tmpDir </> asRelFile "libbsccts-startup.ll"
+    origLibbscctsPath <- getDataFileName $ asRelFile "libbsccts/startup.ll"
     copyFile origLibbscctsPath libbscctsPath
     -- Write the generate IR to files.  One file per input source file.
     forM_ irAndPaths $ \(ir, path) ->
@@ -138,5 +150,6 @@ doNormalMode options userFiles = do
     objPaths <- mapM (M.codegen targetMachine) llPaths
 
     -- Link the object files into the executable.
-    link targetMachine objPaths $ options^.outputName
+    outputPath <- mkAbsPathFromCwd $ options^.outputName
+    link targetMachine objPaths outputPath
   return ()

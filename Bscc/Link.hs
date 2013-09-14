@@ -19,14 +19,16 @@ module Bscc.Link (link) where
 import qualified Bscc.Triplet as Triplet
 
 import Control.Monad (void)
+import Prelude hiding (FilePath)
+import System.Path (AbsFile, getPathString)
 import System.Process (readProcess)
 
 -- | The returned computation links object files to produce an
 -- executable.
 link :: Triplet.Triplet  -- ^ Target machine triplet.
-        -> [FilePath]    -- ^ List of object file (\".o\") paths.
-        -> FilePath      -- ^ Path to write the executable to.
-        -> IO FilePath   -- ^ This computation performs the linking.
+        -> [AbsFile]     -- ^ List of object file (\".o\") paths.
+        -> AbsFile       -- ^ Path to write the executable to.
+        -> IO AbsFile    -- ^ This computation performs the linking.
                          --   Its result is the path to the executable.
 link target objFiles outputName = do
   -- We could use ld to do the linking, but instead we outsource the job
@@ -35,8 +37,9 @@ link target objFiles outputName = do
   -- successfully link objects for our target.  Pass gcc the "-v" flag
   -- to see what pain we're leaving for others to deal with.
   let cmd = Triplet.str target ++ "-gcc"
-      args = objFiles -- Link errors unless objFiles come before -lbsa.
-             ++ ["-o", outputName,
+       -- Link errors unless objFiles come before -lbsa.
+      args = map getPathString objFiles
+             ++ ["-o", getPathString outputName,
                  -- Find and link against libbsa.
                  "-L", "/usr/local/" ++ Triplet.str target ++
                        "/sys-root/mingw/lib/",

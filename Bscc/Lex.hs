@@ -22,6 +22,8 @@ import Bscc.Token
 import Control.Applicative ((<*), (<*>), (*>), (<$>), pure)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
+import Prelude hiding (FilePath)
+import System.Path (AbsFile, getPathString)
 import Text.Parsec.Char (char, oneOf, satisfy)
 import Text.Parsec.Combinator (eof, many1)
 import Text.Parsec.Error (ParseError)
@@ -31,9 +33,9 @@ import Text.Parsec.String (Parser)
 -- | Lex a file, if successful returning a list of tokens lifted into
 -- the `Either' monad.
 lexFileContents :: String       -- ^ File contents
-                   -> FilePath
+                   -> AbsFile
                    -> Either ParseError [Token]
-lexFileContents contents path = parse scan path contents
+lexFileContents contents path = parse scan (getPathString path) contents
 
 -- | This `Parser' is the /lexer/ or /scanner/.  It tokenizes the input.
 scan :: Parser [Token]

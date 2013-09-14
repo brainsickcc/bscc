@@ -22,6 +22,8 @@ import Bscc.Symbol.Name
 import Bscc.Token
 
 import Control.Applicative ((<*), (<*>), (*>), (<$>), pure)
+import Prelude hiding (FilePath)
+import System.Path (AbsFile, getPathString, makeRelative, rootDir)
 import Text.Parsec.Combinator (endBy, eof, sepEndBy, sepBy)
 import Text.Parsec.Error (ParseError)
 import Text.Parsec.Prim ((<?>), parse, Parsec, skipMany, token)
@@ -36,9 +38,10 @@ type Parser = GenParser Token ()
 -- | Parse a file which has already been lexed.  Returns an AST (lifted
 -- into the `Either' monad) if successful.
 parseFileContents :: [Token]      -- ^ Tokens, from lexing the file.
-                     -> FilePath
+                     -> AbsFile
                      -> Either ParseError Module
-parseFileContents tokens path = parse (basModule path) path tokens
+parseFileContents tokens path =
+  parse (basModule path) (getPathString path) tokens
 
 
 -- * Simple parsers, or general purpose parser combinators
@@ -136,9 +139,9 @@ sym c = tokenAccepter (\tok -> case tok of
 -- * The interesting parsers for our grammar
 
 -- | Returns a parser for the contents of the file.
-basModule :: FilePath        -- ^ Should be a \".bas\" file module.
+basModule :: AbsFile         -- ^ Should be a \".bas\" file module.
            -> Parser Module
-basModule path = BasModule path <$>
+basModule path = BasModule (makeRelative rootDir path) <$>
                  (nls *>
                   sepAndMaybeEndByNls1 sub <*
                   eof)

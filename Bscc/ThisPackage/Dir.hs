@@ -21,11 +21,17 @@
 -- of our data resources.
 module Bscc.ThisPackage.Dir (getDataFileName) where
 
+import Control.Applicative ((<$>))
+import Prelude hiding (FilePath)
+import System.Path (AbsFile, RelFile)
+#ifdef BUILD
+import System.Path (asAbsFile, getPathString)
 -- When our code is properly built, Cabal provides functions to
 -- determine the paths of our resources.  When running inside GHCI it
 -- does not.
-#ifdef BUILD
 import qualified Paths_bscc
+#else
+import System.Path (makeAbsoluteFromCwd)
 #endif
 
 -- | The returned computation gives the path which should be used to
@@ -33,14 +39,14 @@ import qualified Paths_bscc
 -- `Paths_bscc.getDataFileName' function from the Cabal generated
 -- "Paths_bscc" module; the function here can additionally be used in an
 -- interpreter.
-getDataFileName :: FilePath -- ^ Path to the data file.  This should be
+getDataFileName :: RelFile -- ^ Path to the data file.  This should be
                             -- relative to the top level directory of
                             -- this package.  The data file must be
                             -- listed under @data-files@ in our .cabal
                             -- file.
-                   -> IO FilePath
+                   -> IO AbsFile
 #ifdef BUILD
-getDataFileName = Paths_bscc.getDataFileName
+getDataFileName f = asAbsFile <$> Paths_bscc.getDataFileName (getPathString f)
 #else
-getDataFileName = return
+getDataFileName = makeAbsoluteFromCwd
 #endif

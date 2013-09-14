@@ -49,6 +49,9 @@ SExprs, SExpr (..)
 -- Imports
 {
 import Bscc.Symbol.Name (SymbolName)
+
+import Prelude hiding (FilePath)
+import System.Path (RelFile)
 }
 
 
@@ -60,7 +63,7 @@ DATA SProject
 TYPE SModules = [SModule]
 
 DATA SModule
-   | SBasModule  path: FilePath  procs: SProcs  name: SymbolName
+   | SBasModule  path: RelFile  procs: SProcs  name: SymbolName
 
 TYPE SProcs = [SProc]
 
