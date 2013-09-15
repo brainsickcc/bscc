@@ -152,4 +152,3 @@ doNormalMode options userFiles = do
     -- Link the object files into the executable.
     outputPath <- mkAbsPathFromCwd $ options^.outputName
     link targetMachine objPaths outputPath
-  return ()
