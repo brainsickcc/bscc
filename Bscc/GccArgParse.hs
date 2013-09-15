@@ -136,7 +136,7 @@ argsParse' :: [OptionDecl opts]
               -> UnparsedArgs
               -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
 argsParse' _ parsed [] = Right parsed
-argsParse' optionDecls parsed unparsed@(headArg:tailArgs) =
+argsParse' optionDecls parsed (headArg:tailArgs) =
   case (head headArg) of
     '-' -> case headArg of
       -- Argument begins with a hyphen; treat it as an option.
@@ -147,7 +147,7 @@ argsParse' optionDecls parsed unparsed@(headArg:tailArgs) =
       _ -> do
         -- Try the optionDecl-defined options to see if one will accept
         -- this option as its own.
-        let tryParse = tryOption (unparsed, parsed ^?! options)
+        let tryParse = tryOption headArg tailArgs $ parsed ^?! options
             attemptedParses = map tryParse optionDecls
         case attemptedParses ^? L.traverse . L._Right of
           Just (unparsed', updatedOptions) ->
@@ -155,16 +155,19 @@ argsParse' optionDecls parsed unparsed@(headArg:tailArgs) =
             where parsed' = parsed & options .~ updatedOptions
           Nothing -> case attemptedParses ^? L.traverse . L._Left of
             Just err -> Left err
-            _ -> Left $ UnrecognizedOption headArg
+            Nothing -> Left $ UnrecognizedOption headArg
     -- Take as a positional arg.
     _ -> argsParse' optionDecls (parsed & positional <>~ [headArg]) tailArgs
 
 
 -- | Attempt to parse an option.
-tryOption  :: (UnparsedArgs, opts)
-              -- ^ (Nonempty list of command line arguments not yet
-              --    parsed, Data structure representing the result of
-              --    the options parsed so far [cf. `options']).
+tryOption  :: UnparsedArg
+              -- ^ Head of the unparsed arguments.
+              -> UnparsedArgs
+              -- ^ Tail.
+              -> opts
+              -- ^ Data structure representing the result of the options
+              -- parsed so far [cf. `options']).
               -> OptionDecl opts
               -- ^ Declaration of the option and its effect.
               -> Either (ParseFailure (OptionDecl opts)) (UnparsedArgs, opts)
@@ -172,23 +175,24 @@ tryOption  :: (UnparsedArgs, opts)
               --   first parameter updated, as the `Right'.  The updated
               --   `UnparsedArgs' is necessarily shorter than as
               --   inputted.
-tryOption (unparsedArgs, parsedOptions) option = case (argDecl option) of
-  DeclNoArgs optionUpdater -> let (hdArg:tlArgs) = unparsedArgs in
-    if hdArg == str option
+tryOption hdUnparsed tlUnparsed parsedOptions option = case (argDecl option) of
+  DeclNoArgs optionUpdater ->
+    if hdUnparsed == str option
        -- For example, parsing "-v".
-    then Right (tlArgs, optionUpdater parsedOptions)
-    else Left $ UnrecognizedOption hdArg
-  DeclOneSquishableArg optionUpdater -> let (hdArg:tlArgs) = unparsedArgs in
-    if hdArg == str option
+    then Right (tlUnparsed, optionUpdater parsedOptions)
+    else Left $ UnrecognizedOption hdUnparsed
+  DeclOneSquishableArg optionUpdater ->
+    if hdUnparsed == str option
        -- For example, we're trying to parse a command line of "-o foo"
        -- (where the "-o foo" is interpreted as if it were without the
        -- quotes and written in the shell).
-    then (if not . null $ tlArgs
-          then Right (tail tlArgs, optionUpdater (head tlArgs) parsedOptions)
+    then (if not . null $ tlUnparsed
+          then Right (tail tlUnparsed,
+                      optionUpdater (head tlUnparsed) parsedOptions)
           else Left $ MissingArgumentToOption option)
-    else case stripPrefix (str option) hdArg of
+    else case stripPrefix (str option) hdUnparsed of
       -- For example, parse "-ofoo" identically to the "-o foo" above.
-      Just hdArgSuffix -> Right (tlArgs,
-                                 optionUpdater hdArgSuffix parsedOptions)
+      Just suffix -> Right (tlUnparsed,
+                            optionUpdater suffix parsedOptions)
       -- This isn't our argument to accept.
-      Nothing -> Left $ UnrecognizedOption hdArg
+      Nothing -> Left $ UnrecognizedOption hdUnparsed
