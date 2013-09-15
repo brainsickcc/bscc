@@ -139,7 +139,7 @@ executable bscc
     help2man,
     runhaskell
   cpp-options: -DBUILD
-  ghc-options: -W -Werror
+  ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns -Werror
 
 
 test-suite tests
