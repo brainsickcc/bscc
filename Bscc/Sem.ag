@@ -36,10 +36,11 @@ semAnalysis
 {
 import Bscc.Ast.Plain
 import Bscc.Ast.WithSem
-import Bscc.Symbol.Name (mkSymbolName, SymbolName)
+import Bscc.Symbol.Name (mkSymbolName, SymbolName, raw)
 import Bscc.Symbol.Table as SymTable
 
 import Prelude hiding (FilePath)
+import Safe (abort)
 import System.Path (getPathString, RelFile, takeBaseName)
 }
 
@@ -52,7 +53,7 @@ INCLUDE "Ast/WithSem.ag"
 -- and check types, but doesn't fully yet (for example, should check the
 -- number and types of function call parameters).
 --
--- Can `error'.
+-- (Unfortunately) failure is reported using synchronous exceptions.
 semAnalysis :: Project -> SProject
 semAnalysis t = typedAst_Syn_Project $ wrap_Project (sem_Project t) Inh_Project
 }
@@ -99,8 +100,11 @@ SEM InProcStmt
   | Call  lhs.typedAst = SCall @loc.foundCalleeProto @loc.args
           loc.maybeFoundCallee = SymTable.lookup @fn
                                                  @lhs.symbolTable
-          loc.foundCalleeProto = let Just sym = @loc.maybeFoundCallee
-                                 in SymTable.proto_Symbol_SymbolProc sym
+          loc.foundCalleeProto =
+            let sym = case @loc.maybeFoundCallee of
+                        Just s -> s
+                        Nothing -> abort $ "unknown call target: " ++ raw @fn
+            in SymTable.proto_Symbol_SymbolProc sym
           -- Convert each Expr in our list of provided arguments to a
           -- SExpr, using what is defined in the "SEM Expr" section).
           loc.args = map (\e -> typedAst_Syn_Expr (wrap_Expr (sem_Expr e)
