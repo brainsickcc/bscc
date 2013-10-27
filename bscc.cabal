@@ -23,7 +23,7 @@ description:
   BASIC language.  In particular, bscc aims to be compatible with the
   Visual Basic for Applications (VBA) language dialect.
 version:            0.1.0
-cabal-version:      >=1.18
+cabal-version:      >=1.19
 -- License is AGPLv3+, but ``cabal check'' doesn't recognise the AGPL.
 license:            AGPL-3
 license-file:       COPYING
@@ -114,7 +114,10 @@ executable bscc
     -- Keep dependencies in sync with the test-suite.
     base >= 4.6 && < 5,
     bytestring == 0.10.*,
-    Cabal == 1.18.*,
+    -- Specify a precise version of Cabal, not a range.  Otherwise
+    -- uuagc-cabal and our Setup.hs might try to use different versions,
+    -- causing the build to fail.
+    Cabal == 1.19.0,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
     groom == 0.1.* && >= 0.1.1,
@@ -152,7 +155,7 @@ test-suite tests
     -- Same as for bscc.
     base >= 4.6 && < 5,
     bytestring == 0.10.*,
-    Cabal == 1.18.*,
+    Cabal == 1.19.0,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
     groom == 0.1.* && >= 0.1.1,
