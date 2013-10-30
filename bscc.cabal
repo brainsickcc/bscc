@@ -22,8 +22,8 @@ description:
   The Brainsick code compiler (bscc) is a compiler for a dialect of the
   BASIC language.  In particular, bscc aims to be compatible with the
   Visual Basic for Applications (VBA) language dialect.
-version:            0.1.0
-cabal-version:      >=1.19
+version:            0.1.1
+cabal-version:      >=1.18
 license:            AGPL-3
 license-file:       COPYING
 copyright:          © 2012, 2013 Iain Nicol
@@ -97,10 +97,6 @@ executable bscc
   -- The dependency version requirements are likely stricter than
   -- necessary, to avoid the need to test we can be build against
   -- previous APIs.
-  --
-  -- Setup.hs has dependencies, so in order to ensure that a ``cabal
-  -- install'' of this package necessarily works, we must ensure its
-  -- dependencies are listed here.
   build-depends:
     -- I would have liked to write code against the Haskell standard
     -- library (plus other imports), by for example writing
@@ -112,11 +108,8 @@ executable bscc
 
     -- Keep dependencies in sync with the test-suite.
     base >= 4.6 && < 5,
+    bscc-setuphs == 0.1.1,
     bytestring == 0.10.*,
-    -- Specify a precise version of Cabal, not a range.  Otherwise
-    -- uuagc-cabal and our Setup.hs might try to use different versions,
-    -- causing the build to fail.
-    Cabal == 1.19.0,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
     groom == 0.1.* && >= 0.1.1,
@@ -154,8 +147,8 @@ test-suite tests
     HTF == 0.11.*,
     -- Same as for bscc.
     base >= 4.6 && < 5,
+    bscc-setuphs == 0.1.1,
     bytestring == 0.10.*,
-    Cabal == 1.19.0,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
     groom == 0.1.* && >= 0.1.1,

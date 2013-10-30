@@ -16,6 +16,7 @@ meets the requirement of the cabal-version field in bscc.cabal.
 Run the following commands in this directory:
   $ cabal sandbox init
   $ cabal update
+  $ cabal sandbox add-source bscc-setuphs/
   $ cabal install --only-dependencies --enable-tests
   $ cabal configure --enable-tests
   $ cabal build
