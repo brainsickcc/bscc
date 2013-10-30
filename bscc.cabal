@@ -24,7 +24,6 @@ description:
   Visual Basic for Applications (VBA) language dialect.
 version:            0.1.0
 cabal-version:      >=1.19
--- License is AGPLv3+, but ``cabal check'' doesn't recognise the AGPL.
 license:            AGPL-3
 license-file:       COPYING
 copyright:          © 2012, 2013 Iain Nicol
