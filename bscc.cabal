@@ -91,8 +91,6 @@ executable bscc
   -- enabled.
   other-extensions:
     CPP,
-    FlexibleInstances,
-    OverloadedStrings,
     TemplateHaskell
   -- The dependency version requirements are likely stricter than
   -- necessary, to avoid the need to test we can be build against
