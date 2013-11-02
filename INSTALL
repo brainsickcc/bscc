@@ -5,7 +5,9 @@ See the end of the file for license conditions.
 
 These instructions should work on modern Unix-like systems.
 
-Install the program help2man.
+From your operating system package manager, install the program
+help2man.  Also install the LLVM development package; look for ``llvm''
+in bscc.cabal to determine the approach LLVM version.
 
 Install GHC, a Haskell compiler; also install a package manager called
 cabal-install.  You may find these bundled together in the ``Haskell
