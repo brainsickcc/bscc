@@ -14,7 +14,6 @@
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Main (entry) file for the bscc program.
 module Main (main) where
@@ -52,7 +51,12 @@ import Text.Groom (groom)
 data BsccOptions = BsccOptions { _outputName :: FilePath,
                                  _verbose :: Bool }
                    deriving (Show)
-$(L.makeLenses ''BsccOptions)
+
+outputName :: L.Lens' BsccOptions FilePath
+outputName = L.lens _outputName $ \s a -> s { _outputName = a }
+
+verbose :: L.Lens' BsccOptions Bool
+verbose = L.lens _verbose $ \s a -> s { _verbose = a }
 
 -- | Represents successfully parsing zero command line options.
 defaultOptions :: BsccOptions

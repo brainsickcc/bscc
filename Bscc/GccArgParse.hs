@@ -13,8 +13,6 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-{-# LANGUAGE TemplateHaskell #-}
-
 -- | Support for command line arguments parsing, in the style of GCC.
 -- Such style is a lot like the X11-style.
 --
@@ -66,7 +64,12 @@ data Arguments opts = Help     -- ^ \--help was given
                         _positional :: PosArgs
                         }
                     deriving (Show)
-$(L.makeLenses ''Arguments)
+
+positional :: L.Lens' (Arguments opts) PosArgs
+positional = L.lens _positional $ \s a -> s { _positional = a }
+
+options :: L.Lens' (Arguments opts) opts
+options = L.lens _options $ \s a -> s { _options = a }
 
 -- | Input parameter should represent the result of successfully parsing
 -- zero command line options.  Returns a record which represents the
