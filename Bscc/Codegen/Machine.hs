@@ -14,7 +14,7 @@
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -- | Machine code generation.
-module Bscc.Codegen.Machine (codegen) where
+module Bscc.Codegen.Machine (codegenLlvmAsmFile) where
 
 import qualified Bscc.Triplet as Triplet
 
@@ -33,13 +33,15 @@ import System.Path (AbsFile, getPathString, replaceExtension)
 import System.Path.IO (readFile)
 
 -- | Code generation.
-codegen :: Triplet.Triplet  -- ^ Target machine type.
-           -> AbsFile       -- ^ Path to the input file, which must be
-                            --   in the IR ("Bscc.Codegen.Ir").
-           -> IO AbsFile    -- ^ The returned computation generates a
-                            --   \".o\" object file, and returns its
-                            --   path.
-codegen triple llFile = do
+codegenLlvmAsmFile :: Triplet.Triplet
+                      -- ^ Target machine type.
+                      -> AbsFile
+                      -- ^ Path to the input file, which must be in LLVM
+                      -- assembly.
+                      -> IO AbsFile
+                      -- ^ The returned computation generates a \".o\"
+                      -- object file, and returns its path.
+codegenLlvmAsmFile triple llFile = do
   llText <- readFile llFile
   let outPath = llFile `replaceExtension` ".o"
   withContext $ \context -> do

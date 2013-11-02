@@ -31,16 +31,19 @@ import Bscc.Symbol.Name (mkSymbolName)
 import Bscc.ThisPackage.Dir (getDataFileName)
 import Bscc.Triplet
 
+import Control.Applicative ((<$>), (<*>), pure)
 import Control.Error.Util (errLn)
 import qualified Control.Lens as L
 import Control.Lens.Operators ((^.))
 import Control.Monad (forM, forM_, void, when)
+import qualified LLVM.General.AST as A
 import Prelude hiding (readFile)
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
 import System.IO (hPutStr, IOMode (WriteMode))
 import System.IO.Temp (withSystemTempDirectory)
-import System.Path (asRelFile, getPathString, mkAbsPathFromCwd, takeExtension,
+import System.Path (asRelFile, getPathString, mkAbsPathFromCwd,
+                    RelFile, takeExtension,
                     (</>))
 import System.Path.Directory (copyFile)
 import System.Path.IO (readFile, withFile)
@@ -133,12 +136,16 @@ doNormalMode options userFiles = do
     putStrLn $ groom typedAst
 
   -- Generate the Intermediate Representation (IR), namely LLVM IR.
-  let irAndPaths = Ir.codegen typedAst
+  -- blah2 = forM irAndPaths $ \(ast, path) -> (,) <$> Ir.llvmModuleAstToString ast <*> pure path
+  let irAstAndPaths :: [(A.Module, RelFile)]
+      irAstAndPaths = Ir.codegen typedAst
+  irStringAndPaths <- forM irAstAndPaths $ \(ast', path) ->
+    (,) <$> Ir.llvmModuleAstToString ast' <*> pure path :: IO (String, RelFile)
   when (options^.verbose) $ do
     putStrLn "\nLLVM IR:"
     putStr $ unlines (map (\(content, path) -> getPathString path ++ ":\n" ++
                                                content)
-                      irAndPaths)
+                      irStringAndPaths)
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
@@ -150,13 +157,13 @@ doNormalMode options userFiles = do
     origLibbscctsPath <- getDataFileName $ asRelFile "libbsccts/startup.ll"
     copyFile origLibbscctsPath libbscctsPath
     -- Write the generate IR to files.  One file per input source file.
-    forM_ irAndPaths $ \(ir, path) ->
+    forM_ irStringAndPaths $ \(ir, path) ->
       withFile (tmpDir </> path) WriteMode (`hPutStr` ir)
 
     -- Generate object files (with machine code for the target), for
     -- each LLVM IR file.
-    let llPaths = map ((tmpDir </>) . snd) irAndPaths ++ [libbscctsPath]
-    objPaths <- mapM (M.codegen targetMachine) llPaths
+    let llPaths = map ((tmpDir </>) . snd) irStringAndPaths ++ [libbscctsPath]
+    objPaths <- mapM (M.codegenLlvmAsmFile targetMachine) llPaths
 
     -- Link the object files into the executable.
     outputPath <- mkAbsPathFromCwd $ options^.outputName

@@ -22,7 +22,7 @@ optpragmas
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
--- | Generation of Intermediate Representation (IR) code.
+-- | Generation of the Intermediate Representation (IR).
 
 -- This comment separates above doc comment and UUAGC-inserted comment
 }
@@ -31,7 +31,7 @@ MODULE {Bscc.Codegen.Ir}
 -- Exports
 {
 codegen,
-Ir
+llvmModuleAstToString
 }
 -- Imports
 {
@@ -39,12 +39,28 @@ import Bscc.Ast.WithSem
 import Bscc.Symbol.Name
 
 import Control.Category ((>>>))
+import Control.Exception (throwIO)
+import Control.Monad ((>=>))
+import Control.Monad.Trans.Error (ErrorT, runErrorT)
 import qualified Data.ByteString as B
-import Data.List (intercalate)
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf16BE)
 import Data.Word (Word8, Word16)
+import qualified LLVM.General.AST as A
+import LLVM.General.AST.Attribute (ParameterAttribute)
+import LLVM.General.AST.AddrSpace (AddrSpace (AddrSpace))
+import qualified LLVM.General.AST.CallingConvention as CC
+import qualified LLVM.General.AST.Constant as C
+import qualified LLVM.General.AST.Global as G
+import qualified LLVM.General.AST.Instruction as I
+import qualified LLVM.General.AST.Linkage as L
+import qualified LLVM.General.AST.Name as N
+import qualified LLVM.General.AST.Operand as O
+import qualified LLVM.General.AST.Type as T
+import qualified LLVM.General.AST.Visibility as V
+import LLVM.General.Context (withContext)
+import qualified LLVM.General.Module as M
 import Prelude hiding (FilePath)
 import System.Path (RelFile, takeBaseName, (<.>))
 }
@@ -54,30 +70,24 @@ INCLUDE "../Ast/WithSem.ag"
 
 {
 -- | IR code generation.
-codegen :: SProject         -- ^ AST with type information.
-        -> [(Ir, RelFile)]  -- ^ The `fst' of each list element is IR.
-                            -- The `snd' is a (recommended) relative
-                            -- path to save it to.
+codegen :: SProject               -- ^ AST with type information.
+        -> [(A.Module, RelFile)]  -- ^ The `fst' of each list element is
+                                  -- IR.  The `snd' is a (recommended)
+                                  -- relative path to save it to, if you
+                                  -- were to convert it to textual LLVM
+                                  -- assembly.
 codegen = ir_Syn_SProject . (`wrap_SProject` Inh_SProject) . sem_SProject
 
--- | Our Intermediate Representation (IR) is textual LLVM IR.
-type Ir = String
-}
+llvmModuleAstToString :: A.Module -> IO String
+llvmModuleAstToString ast = do
+  withContext $ \context -> do
+    fromRightErrorTIo $ M.withModuleFromAST context ast M.moduleString
 
--- Functions for composing vaguely-readable `Ir'.
-{
--- | Join the second and third input parameters, separating by the
--- first.
-sepBy :: Ir -> Ir -> Ir -> Ir
-sepBy a x y = x ++ a ++ y
+fromRightErrorTIo :: Show a => ErrorT a IO b -> IO b
+fromRightErrorTIo = runErrorT >=> either (throwIO . userError . show) return
 
--- | Join the two input parameters in order, separing by a newline.
-sepByNl :: Ir -> Ir -> Ir
-sepByNl = sepBy "\n"
-
--- | Join the two input parameters in order, separating by two newlines.
-sepByNlNl :: Ir -> Ir -> Ir
-sepByNlNl = sepBy "\n\n"
+x86_stdcallcc :: CC.CallingConvention
+x86_stdcallcc = CC.Numbered 64
 }
 
 -- Support for UNIQUEREF (generating unique numbers, for labels, etc.).
@@ -96,25 +106,25 @@ nextUnique n = (n + 1, n)
 -- * Here we have the main, reasonably straightforward (famous last
 -- words), section of code for IR generation
 
-ATTR SProject     [ | | ir: {[(Ir, RelFile)]} ]
-ATTR SModules     [ | | ir USE {:} {[]}: {[(Ir, RelFile)]} ]
-ATTR SModule      [ | | ir: {(Ir, RelFile)} ]
-ATTR SProcs       [ | | ir USE {`sepByNlNl`} {""}: Ir ]
-ATTR SProc SProcPrototype SArgDefs SArgDef SType SProcRetType [ | | ir: Ir ]
-ATTR SInProcStmts [ | | ir USE {`sepByNl`} {""}: Ir ]
-ATTR SInProcStmt SExprs SExpr                                 [ | | ir: Ir ]
-
+ATTR SProject     [ | | ir: {[(A.Module, RelFile)]} ]
 SEM SProject
   | SProject  lhs.ir = @modules.ir
 
+ATTR SModules     [ | | ir USE {:} {[]}: {[(A.Module, RelFile)]} ]
+
+ATTR SModule      [ | | ir: {(A.Module, RelFile)} ]
 SEM SModule
-  | SBasModule  lhs.ir = (@loc.fileLevelDecls ++ "\n" ++ @procs.ir,
+  | SBasModule  lhs.ir = (A.defaultModule
+                          {
+                            A.moduleDefinitions = map A.GlobalDefinition
+                                                    (@loc.fileLevelDecls ++
+                                                     @procs.definition)
+                          },
                           takeBaseName @path <.> "ll")
-                loc.fileLevelDecls = @loc.declsUsedNonLocalProcs ++ "\n" ++
-                                     @procs.fileLevelDecls
+                loc.fileLevelDecls = @procs.fileLevelDecls ++
+                                     @loc.declsUsedNonLocalProcs
                 loc.declsUsedNonLocalProcs =
-                    (unlines .
-                    map (procProtoGetDeclIr @lhs.inProject @name) .
+                    (map (procProtoGetDeclIr @lhs.inProject @name) .
                     Set.elems) @procs.usedNonLocalProcs
 {
 -- | Calling a procedure defined in another file requires a declaration
@@ -122,8 +132,8 @@ SEM SModule
 -- name of the Project and then the Module containing the call,
 -- and additionally the prototype of the called procedure.  Returns the
 -- required declaration.
-procProtoGetDeclIr :: SymbolName -> SymbolName -> SProcPrototype -> Ir
-procProtoGetDeclIr inProject inModule =  declaration_Syn_SProcPrototype .
+procProtoGetDeclIr :: SymbolName -> SymbolName -> SProcPrototype -> G.Global
+procProtoGetDeclIr inProject inModule =  importDeclaration_Syn_SProcPrototype .
                                          (`wrap_SProcPrototype` inh) .
                                          sem_SProcPrototype
   where inh = Inh_SProcPrototype { inProject_Inh_SProcPrototype = inProject,
@@ -131,115 +141,125 @@ procProtoGetDeclIr inProject inModule =  declaration_Syn_SProcPrototype .
 }
 
 ATTR SProcs SProc SInProcStmts
-     SInProcStmt SExprs [ | | fileLevelDecls USE {++} {""}: Ir ]
+     SInProcStmt SExprs [ | | fileLevelDecls USE {++} {[]}: {[G.Global]} ]
 
+ATTR SProcs       [ | | definition USE {:} {[]}: {[G.Global]} ]
+
+ATTR SProc        [ | | definition: {G.Global} ]
 SEM SProc
-  | SProc  lhs.ir =
+  | SProc  lhs.definition =
     {
-      "define " ++ @proto.ir ++ "\n" ++
-      "{\n" ++
-      @body.ir ++
-      "ret " ++ @loc.retTypeGetDefaultVal @proto.retType ++ "\n" ++
-      "}\n"
+      @proto.definitionDeclaration
+      {
+        G.basicBlocks =
+        [
+          G.BasicBlock (N.UnName 0)
+                       @body.instr
+                       (I.Do $ I.Ret (@loc.retTypeGetDefaultVal @proto.retType)
+                                     [])
+        ]
+      }
     }
            loc.retTypeGetDefaultVal = defaultVal_Syn_SProcRetType .
                                       (`wrap_SProcRetType` Inh_SProcRetType) .
                                       sem_SProcRetType
-           loc.retType = @proto.retType
 
-ATTR SProcPrototype [ | | declaration: Ir  nameAndRetType: Ir
+ATTR SProcPrototype [ | | importDeclaration: {G.Global}
+                          definitionDeclaration: {G.Global}
+                          asCallable: {O.CallableOperand}
                           retType: SProcRetType ]
 SEM SProcPrototype
   | SProcPrototype
       -- The declaration is necessary in a file calling this procedure,
       -- if the file calling this function is different from the one
       -- containing its implementation.
-      lhs.declaration = "declare" ++ @loc.linkage ++ @loc.ir
+      lhs.importDeclaration = @loc.proto
+      -- Used when the implementation of our procedure is defined.
+      lhs.definitionDeclaration = @loc.proto
+      lhs.asCallable = Right . O.ConstantOperand . C.GlobalReference $
+                         procName @self
+      loc.retType = @retType.self
       -- Standard library is compiled to a .dll.
-      loc.linkage = if @implProject == vbaProjectName then " dllimport "
-                                                      else " "
-      -- Used locally, and also when the implementation of our procedure
-      -- is defined.
-      loc.ir = @loc.nameAndRetType ++ @argDefs.ir
-      -- Used locally, and when we are called.
-      loc.nameAndRetType = "x86_stdcallcc " ++ @retType.ir ++ " "
-                           ++ procName @self
-      lhs.retType = @retType.self
+      loc.linkage = if @implProject == vbaProjectName then L.DLLImport
+                                                      else L.External
+      loc.proto = G.Function @loc.linkage V.Default x86_stdcallcc []
+                    @retType.ty (procName @self) (@argDefs.defn, False) []
+                    Nothing 0 Nothing []
+
 ATTR SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
      [ | | self: SELF ]
 {
-procName :: SProcPrototype -> Ir
+procName :: SProcPrototype -> N.Name
 procName SProcPrototype {implProject_SProcPrototype_SProcPrototype =
                            implProject,
                          name_SProcPrototype_SProcPrototype = name}
-         | implProject == vbaProjectName = "@" ++ raw name
-         | otherwise = "@proc_" ++ normalized name
+         | implProject == vbaProjectName = N.Name (raw name)
+         | otherwise = N.Name ("proc_" ++ normalized name)
 
 -- | The name of the standard library Project (\"VBA\") as a `SymbolName'.
 vbaProjectName :: SymbolName
 vbaProjectName = mkSymbolName "VBA"
 }
 
--- Join list elements (in the SArgDefs case, where the list is a list of
--- SArgDef.ir, etc.), separating the elements by a comma.  The result of
--- that is then surrounded by round brackets.
-ATTR SArgDefs SExprs [ | | privateAccum: {[Ir]} ]
-SEM SArgDefs SExprs
-  -- Note that privateAccum has to be a public (non-local) attribute so
-  -- we can use it as "@tl.privateAccum".  Nor could we do a simple
-  -- "ATTR ... [ | | ir USE {`sepByComma`}" to do the comma separation,
-  -- because we would end up with trailing commas.
-  | Cons  loc.privateAccum = @hd.ir : @tl.privateAccum
-          lhs.ir = "(" ++ intercalate ", " @loc.privateAccum ++ ")"
-  | Nil   loc.privateAccum = []
-          lhs.ir = "()"
+ATTR SArgDefs [ | | defn USE {:} {[]}: {[G.Parameter]} ]
 
+ATTR SArgDef  [ | | defn: {G.Parameter} ]
 SEM SArgDef
-  | SArgDef  lhs.ir = @ty.ir
+  | SArgDef  lhs.defn = G.Parameter @ty.ty (N.UnName 0) []
 
-ATTR SType [ | | defaultVal: Ir ]
+ATTR SType [ | | defaultVal: {O.Operand}
+                 ty: {T.Type} ]
+
 SEM SType
-  | SString  loc.ir = "i16*"
-             -- We always include the type with the default
-             -- (uninitialized) value, because LLVM IR requires explicit
-             -- type information.
-             lhs.defaultVal = @loc.ir ++ " null"
+  | SString  loc.ty = (T.PointerType (T.IntegerType 16) (AddrSpace 0))
+             lhs.defaultVal = O.ConstantOperand $ C.Null @loc.ty
 
-ATTR SProcRetType [ | | defaultVal: Ir ]
+ATTR SProcRetType [ | | defaultVal: {Maybe O.Operand}
+                        ty: {T.Type} ]
 SEM SProcRetType
-  | Just     lhs.ir = @just.ir
-             lhs.defaultVal = @just.defaultVal
-  | Nothing  lhs.ir = "void"
-             lhs.defaultVal = "void"
+  | Just     lhs.ty = @just.ty
+             lhs.defaultVal = Just @just.defaultVal
+  | Nothing  lhs.ty = T.VoidType
+             lhs.defaultVal = Nothing
 
+ATTR SInProcStmts [ | | instr USE {:} {[]}: {[I.Named I.Instruction]} ]
+
+ATTR SInProcStmt  [ | | instr: {I.Named I.Instruction} ]
 SEM SInProcStmt
-  | SCall  lhs.ir = "call " ++ @proc.nameAndRetType ++ @args.ir
+  | SCall  lhs.instr = I.Do $ I.Call False x86_stdcallcc [] @proc.asCallable
+                                     @args.operandEtc [] []
 
-ATTR SExpr [ | | fileLevelDecls: String ]
+ATTR SExprs [ | | operandEtc USE {:} {[]}:
+                    {[(O.Operand, [ParameterAttribute])]} ]
+
+ATTR SExpr [ | | fileLevelDecls: {[G.Global]}
+                 operandEtc: {(O.Operand, [ParameterAttribute])} ]
 SEM SExpr
   | SStringLit  -- Determine a unique register to store the string
                 -- contents into.
                 loc.uniqueN : UNIQUEREF counter
-                loc.register = "@s" ++ show @loc.uniqueN
+                loc.register = N.Name $ "s" ++ show @loc.uniqueN
                 -- Store the string contents (outwith the procedure).
                 -- Requires determining the type.  We null terminate the
                 -- string.
                 loc.fileLevelDecls =
     {
-      @loc.register ++ " = private constant " ++ @loc.contentsType ++ " "
-      ++ word16sToIr @loc.word16s ++ "; " ++ show @val ++ "\n"
+      [G.GlobalVariable @loc.register L.Private V.Default False (AddrSpace 0)
+                        False True @loc.contentsType
+                        (Just $ word16sToIr @loc.word16s)
+                        Nothing 0]
     }
                 loc.word16s = hsStringToWord16s @val
                 loc.contentsType =
-                    "[" ++ show (length @loc.word16s) ++ " x i16]"
+                     T.ArrayType (fromIntegral $ length @loc.word16s)
+                                 (T.IntegerType 16)
                 -- Whenever any generated code needs the string, we
                 -- refer to it via a (typed) pointer.
-                lhs.ir =
+                lhs.operandEtc =
     {
-      "i16* getelementptr inbounds (" ++ @loc.contentsType ++ "*" ++ " "
-                                      ++ @loc.register ++ ", "
-                                      ++ "i64 0, i64 0" ++
-                                  ")"
+      (O.ConstantOperand $ C.GetElementPtr True (C.GlobalReference @register)
+                                           [C.Int 64 0, C.Int 64 0],
+       [])
     }
 
 -- Support functions for translating string literals
@@ -247,10 +267,9 @@ SEM SExpr
 -- | Translate a list of UTF-16 codepoints (with host endianness)
 -- representing the body of a string literal, to the `Ir' form of the
 -- list (which is endian neutral).  Does not add a trailing NUL.
-word16sToIr :: [Word16] -> Ir
-word16sToIr xs = "[" ++ word16sToIr' xs ++ "]"
-  where word16sToIr' = map (\i -> "i16 " ++ show i) >>>
-                       intercalate ", "
+word16sToIr :: [Word16] -> C.Constant
+word16sToIr xs = C.Array (T.IntegerType 16)
+                         (map (\x -> C.Int 16 (fromIntegral x)) xs)
 
 -- | Convert a standard Haskell string to a list of UTF-16 codepoints
 -- (with host endianness).  Adds a trailing NUL.
