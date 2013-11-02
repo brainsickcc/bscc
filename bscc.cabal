@@ -121,6 +121,7 @@ executable bscc
     process == 1.1.*,
     safe == 0.3.* && >= 0.3.3,
     temporary == 1.1.* && >= 1.1.2,
+    transformers == 0.3.*,
     text == 0.11.* && >= 0.11.2,
     uuagc == 0.9.* && >= 0.9.40.3
   build-tools:
@@ -160,6 +161,7 @@ test-suite tests
     process == 1.1.*,
     safe == 0.3.* && >= 0.3.3,
     temporary == 1.1.* && >= 1.1.2,
+    transformers == 0.3.*,
     text == 0.11.* && >= 0.11.2,
     uuagc == 0.9.* && >= 0.9.40.3
   -- Disable optimization.  According to the FAQ of test-framework
