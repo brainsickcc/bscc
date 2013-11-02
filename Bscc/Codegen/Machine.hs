@@ -18,10 +18,19 @@ module Bscc.Codegen.Machine (codegen) where
 
 import qualified Bscc.Triplet as Triplet
 
-import Control.Monad (void)
-import Prelude hiding (FilePath)
+import Control.Exception (throwIO)
+import Control.Monad ((>=>))
+import Control.Monad.Trans.Error (ErrorT, runErrorT)
+import qualified Data.Set as Set
+import qualified LLVM.General.Module as M
+import qualified LLVM.General.CodeGenOpt as CodeGenOpt
+import qualified LLVM.General.CodeModel as CodeModel
+import LLVM.General.Context (withContext)
+import qualified LLVM.General.Target as T
+import qualified LLVM.General.Relocation as Relocation
+import Prelude hiding (FilePath, readFile)
 import System.Path (AbsFile, getPathString, replaceExtension)
-import System.Process (readProcess)
+import System.Path.IO (readFile)
 
 -- | Code generation.
 codegen :: Triplet.Triplet  -- ^ Target machine type.
@@ -30,37 +39,36 @@ codegen :: Triplet.Triplet  -- ^ Target machine type.
            -> IO AbsFile    -- ^ The returned computation generates a
                             --   \".o\" object file, and returns its
                             --   path.
-codegen target llFile = do
-  sFile <- toSFile target llFile
-  toObjFile target sFile
+codegen triple llFile = do
+  llText <- readFile llFile
+  let outPath = llFile `replaceExtension` ".o"
+  withContext $ \context -> do
+    fromRightErrorTIo $
+      M.withModuleFromString context llText $ \llCxxModule -> do
+        codegenLlvmCxxModule llCxxModule triple outPath
+  return outPath
 
--- | Conversion from IR to assembly language for the target.
-toSFile :: Triplet.Triplet  -- ^ Target machine type.
-           -> AbsFile       -- ^ Path to the input file, which must be
-                            --   in the IR ("Bscc.Codegen.Ir").
-           -> IO AbsFile    -- ^ The returned computation generates a
-                            --   \".s\" assembly language file, and
-                            --   returns its path.
-toSFile target llFile = do
-  let sFile = llFile `replaceExtension` ".s"
-      cmd = "llc"
-      args = ["-mtriple=" ++ Triplet.str target, "-o", getPathString sFile,
-              getPathString llFile]
-      stdin = []
-  void $ readProcess cmd args stdin
-  return sFile
+-- | Generate an object file, writing it to the given path.
+codegenLlvmCxxModule :: M.Module -> Triplet.Triplet -> AbsFile -> IO ()
+codegenLlvmCxxModule llCxxModule triple outPath = do
+  target <- lookupTargetSafe triple
+  T.withTargetOptions $ \targetOptions -> do
+    T.withTargetMachine target (Triplet.str triple) (Triplet.cpu triple)
+                        Set.empty
+                        targetOptions Relocation.Default CodeModel.Default
+                        CodeGenOpt.Default $
+                        \machine -> fromRightErrorTIo $
+                                    M.writeObjectToFile machine
+                                                        (getPathString outPath)
+                                                        llCxxModule
 
--- | Assemble.
-toObjFile :: Triplet.Triplet  -- ^ Target machine type
-             -> AbsFile       -- ^ Path to file in assembly language of
-                              --   the target machine.
-             -> IO AbsFile    -- ^ The returned computation performs
-                              --   assembly, generating a \".o\" object
-                              --   file and returning its path.
-toObjFile target sFile = do
-  let objFile = sFile `replaceExtension` ".o"
-      cmd = Triplet.str target ++ "-as"
-      args = ["-o", getPathString objFile, getPathString sFile]
-      stdin = []
-  void $ readProcess cmd args stdin
-  return objFile
+fromRightErrorTIo :: Show a => ErrorT a IO b -> IO b
+fromRightErrorTIo = runErrorT >=> either (throwIO . userError . show) return
+
+-- | This is safe in that it takes care of any required initialization.
+lookupTargetSafe :: Triplet.Triplet -> IO T.Target
+lookupTargetSafe triple = do
+  T.initializeAllTargets
+  (target, _) <- fromRightErrorTIo $
+                 T.lookupTarget Nothing (Triplet.str triple)
+  return target

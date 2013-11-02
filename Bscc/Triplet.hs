@@ -15,11 +15,15 @@
 
 -- | Triplets are used to identify system types, such as the target
 -- machine type.
-module Bscc.Triplet (defaultTarget, str, Triplet) where
+module Bscc.Triplet (defaultTarget, cpu, str, Triplet) where
 
 -- | A triplet, as known from say cross compilation with Autotools and
 -- GCC.
 data Triplet = I686W64Mingw32 -- ^ 32-bit x86 Portable Executable (PE)
+
+-- | Returns the CPU name portion of a triplet.
+cpu :: Triplet -> String
+cpu t = takeWhile (/= '-') (str t)
 
 -- | Returns the canonical string representation of a triplet.
 str :: Triplet -> String

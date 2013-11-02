@@ -20,11 +20,10 @@ The file INSTALL also contains instructions on creating a source
 distribution tarball.
 
 bscc has runtime dependencies which you should install when instructed
-to do so by the INSTALL file.  The first two are:
-  * the commmand line LLVM programs, version 3.0 or later, and
+to do so by the INSTALL file.  The first is:
   * the 32-bit (cross) compiler from MinGW-w64, version 4.7.0 or later,
     namely the program i686-w64-mingw32-gcc and its usual libraries.
-These are hopefully available from your package manager.
+This is hopefully available from your package manager.
 
 The final runtime dependency of bscc is the library libbsa.  libbsa
 should be available whence you obtained bscc.  You must install libbsa,
