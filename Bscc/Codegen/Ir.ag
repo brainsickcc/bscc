@@ -125,7 +125,7 @@ SEM SModule
                                      @loc.declsUsedNonLocalProcs
                 loc.declsUsedNonLocalProcs =
                     (map (procProtoGetDeclIr @lhs.inProject @name) .
-                    Set.elems) @procs.usedNonLocalProcs
+                     Set.elems) @procs.usedNonLocalProcs
 {
 -- | Calling a procedure defined in another file requires a declaration
 -- in the file you are generating code for.  This function takes the
