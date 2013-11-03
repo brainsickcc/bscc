@@ -20,8 +20,8 @@ module Main (main) where
 
 import Bscc.Ast.Plain (Project (..))
 import qualified Bscc.Codegen.Ir as Ir
-import qualified Bscc.Codegen.Machine as M
-import Bscc.GccArgParse as A
+import qualified Bscc.Codegen.Machine as Mach
+import Bscc.GccArgParse as Arg
 import Bscc.HelpAndVersion
 import Bscc.Lex
 import Bscc.Link
@@ -88,7 +88,7 @@ main = do
   case argsParse myOptions defaultOptions args of
     Left err -> case err of
       MissingArgumentToOption opt ->
-        error $ "missing parameter to '" ++ A.str opt ++ "'"
+        error $ "missing parameter to '" ++ Arg.str opt ++ "'"
       UnrecognizedOption opt -> fatalError $ "unrecognised option: " ++ opt
     Right res -> case res of
       Help -> putHelp
@@ -163,7 +163,7 @@ doNormalMode options userFiles = do
     -- Generate object files (with machine code for the target), for
     -- each LLVM IR file.
     let llPaths = map ((tmpDir </>) . snd) irStringAndPaths ++ [libbscctsPath]
-    objPaths <- mapM (M.codegenLlvmAsmFile targetMachine) llPaths
+    objPaths <- mapM (Mach.codegenLlvmAsmFile targetMachine) llPaths
 
     -- Link the object files into the executable.
     outputPath <- mkAbsPathFromCwd $ options^.outputName
