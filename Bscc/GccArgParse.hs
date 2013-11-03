@@ -13,6 +13,8 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+{-# LANGUAGE GADTs #-}
+
 -- | Support for command line arguments parsing, in the style of GCC.
 -- Such style is a lot like the X11-style.
 --
@@ -44,6 +46,7 @@ module Bscc.GccArgParse (argsParse, Arguments (..), OptionArgDecl (..),
 import qualified Control.Lens as L
 import Control.Lens.Operators ((&), (^?), (^?!), (.~), (<>~))
 import Data.List (stripPrefix)
+import Data.Monoid (Monoid, mempty)
 import Safe (headMay)
 
 -- | Positional command line arguments.
@@ -76,9 +79,9 @@ options = L.lens _options $ \s a -> s { _options = a }
 -- zero command line options.  Returns a record which represents the
 -- result of successfully parsing zero command line arguments.  See
 -- `options'.
-defaultArguments :: opts -> Arguments opts
-defaultArguments defOptions = Normal { _options = defOptions,
-                                       _positional = [] }
+defaultArguments :: Monoid opts => Arguments opts
+defaultArguments = Normal { _options = mempty,
+                            _positional = [] }
 
 -- | Command line arguments which have not yet been parsed.
 type UnparsedArg = String
@@ -96,24 +99,22 @@ data OptionDecl opts = OptionDecl { str :: String,
                                     argDecl :: OptionArgDecl opts }
 
 -- | Declares the number of arguments for an option.  Additionally,
--- defines the effect of the option appearing.  @opts@ is per `options'.
-data OptionArgDecl opts =
+-- describes the option (@opt@) in a structure of options (@opts@) to
+-- update via a mappend when the option is parsed.
+data OptionArgDecl opts where
   -- | The option takes no arguments.  (The effect of the option must be
   -- implicit in the fact that the option can be given.)
-  DeclNoArgs {
-    -- | Function to update the options (see `options') because our
-    -- option has been parsed.
-    zeroArgsOptionUpdater :: opts -> opts }
+  DeclNoArgs :: Monoid opt => opt -> L.ASetter' opts opt -> OptionArgDecl opts
   -- | The option takes one \"squishable\" argument.  By squishable we
   -- mean the argument \"oobar\" need not be preceded by whitespace
   -- after writing the option \"-f\", like this: \"-foobar\".  However,
   -- the whitespace can be given, and indeed \"-foobar\" and \"-f
   -- oobar\" are equivalent.  (In these examples, imagine the command
   -- line options were written in a shell, without the quotes).
-  | DeclOneSquishableArg {
-    -- | Similar to `zeroArgsOptionUpdater'.  The first argument is the
-    -- command line argument given to the option.
-    oneArgOptionUpdater :: (UnparsedArg -> opts -> opts) }
+  DeclOneSquishableArg :: Monoid opt =>
+                          (UnparsedArg -> opt)
+                          -> L.ASetter' opts opt
+                          -> OptionArgDecl opts
 
 -- | Parse failure.
 data ParseFailure optDecl
@@ -121,19 +122,13 @@ data ParseFailure optDecl
      | UnrecognizedOption UnparsedArg
 
 -- | Parse command line arguments.
-argsParse :: [OptionDecl opts] -- ^ List of declarations of the options
+argsParse :: Monoid opts =>
+             [OptionDecl opts] -- ^ List of declarations of the options
                                --   we support.
-            -> opts            -- ^ This parameter should be of the same
-                               --   type as you want for `options' of
-                               --   the `Arguments' structure.  Pass in
-                               --   a data structure representing the
-                               --   result of successfully parsing zero
-                               --   command line options.
             -> UnparsedArgs    -- ^ Command line arguments to parse.
             -- | Parse result.
             -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
-argsParse optionDecls defaultOptions = argsParse' optionDecls
-                                       (defaultArguments defaultOptions)
+argsParse optionDecls = argsParse' optionDecls defaultArguments
 
 argsParse' :: [OptionDecl opts]
               -> Arguments opts
@@ -181,12 +176,12 @@ tryOption  :: UnparsedArg
               --   `UnparsedArgs' is necessarily shorter than as
               --   inputted.
 tryOption hdUnparsed tlUnparsed parsedOptions option = case (argDecl option) of
-  DeclNoArgs optionUpdater ->
+  DeclNoArgs implicitOptionVal optionSetter ->
     if hdUnparsed == str option
        -- For example, parsing "-v".
-    then Right (tlUnparsed, optionUpdater parsedOptions)
+    then Right (tlUnparsed, parsedOptions & optionSetter <>~ implicitOptionVal)
     else Left $ UnrecognizedOption hdUnparsed
-  DeclOneSquishableArg optionUpdater ->
+  DeclOneSquishableArg parseOption setOption ->
     if hdUnparsed == str option
        -- For example, we're trying to parse a command line of "-o foo"
        -- (where the "-o foo" is interpreted as if it were without the
@@ -194,12 +189,13 @@ tryOption hdUnparsed tlUnparsed parsedOptions option = case (argDecl option) of
     then let (maybeHdTlUnparsed, tlTlUnparsed) = splitAt1May tlUnparsed
          in case maybeHdTlUnparsed of
            Just hdTlUnparsed ->
-             Right (tlTlUnparsed, optionUpdater hdTlUnparsed parsedOptions)
+             Right (tlTlUnparsed,
+                    parsedOptions & setOption <>~ parseOption hdTlUnparsed)
            Nothing -> Left $ MissingArgumentToOption option
     else case stripPrefix (str option) hdUnparsed of
       -- For example, parse "-ofoo" identically to the "-o foo" above.
       Just suffix -> Right (tlUnparsed,
-                            optionUpdater suffix parsedOptions)
+                            parsedOptions & setOption <>~ parseOption suffix)
       -- This isn't our argument to accept.
       Nothing -> Left $ UnrecognizedOption hdUnparsed
 

@@ -33,8 +33,10 @@ import Bscc.Triplet
 
 import Control.Error.Util (errLn)
 import qualified Control.Lens as L
-import Control.Lens.Operators ((^.))
+import Control.Lens.Operators ((&), (^.))
 import Control.Monad (forM, forM_, void, when)
+import Data.Maybe (fromJust)
+import Data.Monoid ((<>), Last (getLast, Last), mappend, mempty, Monoid)
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
 import Prelude hiding (readFile)
@@ -50,20 +52,26 @@ import System.Path.IO (readFile)
 import Text.Groom (groom)
 
 -- | Result of parsing our command line options, when in `Normal' mode.
-data BsccOptions = BsccOptions { _outputName :: FilePath,
-                                 _verbose :: Bool }
+data BsccOptions = BsccOptions { _outputName :: Last FilePath,
+                                 _verbose :: Last Bool }
                    deriving (Show)
 
-outputName :: L.Lens' BsccOptions FilePath
+instance Monoid BsccOptions where
+  mempty = BsccOptions { _outputName = mempty,
+                         _verbose = mempty }
+  x `mappend` y = BsccOptions { _outputName = _outputName x <> _outputName y,
+                                _verbose = _verbose x <> _verbose y }
+
+outputName :: L.Lens' BsccOptions (Last FilePath)
 outputName = L.lens _outputName $ \s a -> s { _outputName = a }
 
-verbose :: L.Lens' BsccOptions Bool
+verbose :: L.Lens' BsccOptions (Last Bool)
 verbose = L.lens _verbose $ \s a -> s { _verbose = a }
 
 -- | Represents successfully parsing zero command line options.
 defaultOptions :: BsccOptions
-defaultOptions = BsccOptions  { _outputName = "a.exe",
-                                _verbose = False }
+defaultOptions = BsccOptions  { _outputName = Last $ Just "a.exe",
+                                _verbose = Last $ Just False }
 
 -- | Command line options we declare and define our support for.
 -- Options should be documented in data/help.txt so they appear in
@@ -73,18 +81,18 @@ myOptions = [optionODecl, optionVDecl]
 
 -- | Support for the output object name (\"-o\") option.
 optionODecl :: OptionDecl BsccOptions
-optionODecl = OptionDecl "-o" $ DeclOneSquishableArg (L.set outputName)
+optionODecl = OptionDecl "-o" $ DeclOneSquishableArg (Last . Just) outputName
 
 -- | Support for the verbose (\"-v\") option.
 optionVDecl :: OptionDecl BsccOptions
-optionVDecl = OptionDecl "-v" $ DeclNoArgs (L.set verbose True)
+optionVDecl = OptionDecl "-v" $ DeclNoArgs (Last $ Just True) verbose
 
 -- | Entry point.  Usually compile files, although as applicable handle
 -- special command line arguments such as --help or --version.
 main :: IO ()
 main = do
   args <- getArgs
-  case argsParse myOptions defaultOptions args of
+  case argsParse myOptions args of
     Left err -> case err of
       MissingArgumentToOption opt ->
         error $ "missing parameter to '" ++ Arg.str opt ++ "'"
@@ -92,7 +100,7 @@ main = do
     Right res -> case res of
       Help -> putHelp
       Version -> putVersion
-      Normal options pos -> doNormalMode options pos
+      Normal options pos -> doNormalMode (defaultOptions <> options) pos
 
 doNormalMode :: BsccOptions -- ^ Parsed command line options.
                 -> PosArgs  -- ^ List of files to compile.
@@ -124,20 +132,20 @@ doNormalMode options userFiles = do
         exitFailure
       Right ast -> return ast
   let ast = Project perFileAsts $ mkSymbolName "Project1"
-  when (options^.verbose) $ do
+  when (options^.verbose & getLast & fromJust) $ do
     putStrLn "AST:"
     putStrLn . groom $ ast
 
   -- Perform semantic analysis.
   let typedAst = semAnalysis ast
-  when (options^.verbose) $ do
+  when (options^.verbose & getLast & fromJust) $ do
     putStrLn "\nSemantic analysis result:"
     putStrLn $ groom typedAst
 
   -- Generate the Intermediate Representation (IR), namely LLVM IR.
   let irAstAndPaths :: [(A.Module, RelFile)]
       irAstAndPaths = Ir.codegen typedAst
-  when (options^.verbose) $ do
+  when (options^.verbose & getLast & fromJust) $ do
     putStrLn "\nLLVM IR:"
     forM_ irAstAndPaths $ \(irAst, path) -> do
       putStrLn $ getPathString path ++ ":"
@@ -164,7 +172,7 @@ doNormalMode options userFiles = do
     let objPaths :: [AbsFile]
         objPaths = libbscctsObjPath : mainObjPaths
     -- Link the object files into the executable.
-    outputPath <- mkAbsPathFromCwd $ options^.outputName
+    outputPath <- mkAbsPathFromCwd $ options^.outputName & getLast & fromJust
     link targetMachine objPaths outputPath
 
 fatalError :: String -> IO ()

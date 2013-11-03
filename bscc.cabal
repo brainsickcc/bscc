@@ -90,7 +90,8 @@ executable bscc
   -- cause build errors, at least with TemplateHaskell when profiling is
   -- enabled.
   other-extensions:
-    CPP
+    CPP,
+    GADTs
   -- The dependency version requirements are likely stricter than
   -- necessary, to avoid the need to test we can be build against
   -- previous APIs.
