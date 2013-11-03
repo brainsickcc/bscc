@@ -30,8 +30,7 @@ optpragmas
 MODULE {Bscc.Codegen.Ir}
 -- Exports
 {
-codegen,
-llvmModuleAstToString
+codegen
 }
 -- Imports
 {
@@ -63,8 +62,6 @@ import qualified LLVM.General.AST.Name as N
 import qualified LLVM.General.AST.Operand as O
 import qualified LLVM.General.AST.Type as T
 import qualified LLVM.General.AST.Visibility as V
-import LLVM.General.Context (withContext)
-import qualified LLVM.General.Module as M
 import Prelude hiding (FilePath)
 import System.Path (RelFile, takeBaseName, (<.>))
 }
@@ -82,11 +79,6 @@ codegen :: SProject               -- ^ AST with type information.
                                   -- assembly.
 codegen = toList .
           ir_Syn_SProject . (`wrap_SProject` Inh_SProject) . sem_SProject
-
-llvmModuleAstToString :: A.Module -> IO String
-llvmModuleAstToString ast = do
-  withContext $ \context -> do
-    fromRightErrorTIo $ M.withModuleFromAST context ast M.moduleString
 
 fromRightErrorTIo :: Show a => ErrorT a IO b -> IO b
 fromRightErrorTIo = runErrorT >=> either (throwIO . userError . show) return

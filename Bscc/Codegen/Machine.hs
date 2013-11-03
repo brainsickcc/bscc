@@ -14,7 +14,9 @@
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 -- | Machine code generation.
-module Bscc.Codegen.Machine (codegenLlvmAsmFile) where
+module Bscc.Codegen.Machine (codegen,
+                             withModuleFromAst,
+                             withModuleFromLlAsmFile) where
 
 import qualified Bscc.Triplet as Triplet
 
@@ -22,6 +24,7 @@ import Control.Exception (throwIO)
 import Control.Monad ((>=>))
 import Control.Monad.Trans.Error (ErrorT, runErrorT)
 import qualified Data.Set as Set
+import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
 import qualified LLVM.General.CodeGenOpt as CodeGenOpt
 import qualified LLVM.General.CodeModel as CodeModel
@@ -29,30 +32,31 @@ import LLVM.General.Context (withContext)
 import qualified LLVM.General.Target as T
 import qualified LLVM.General.Relocation as Relocation
 import Prelude hiding (FilePath, readFile)
-import System.Path (AbsFile, getPathString, replaceExtension)
+import System.Path (AbsFile, getPathString)
 import System.Path.IO (readFile)
 
--- | Code generation.
-codegenLlvmAsmFile :: Triplet.Triplet
-                      -- ^ Target machine type.
-                      -> AbsFile
-                      -- ^ Path to the input file, which must be in LLVM
-                      -- assembly.
-                      -> IO AbsFile
-                      -- ^ The returned computation generates a \".o\"
-                      -- object file, and returns its path.
-codegenLlvmAsmFile triple llFile = do
-  llText <- readFile llFile
-  let outPath = llFile `replaceExtension` ".o"
-  withContext $ \context -> do
-    fromRightErrorTIo $
-      M.withModuleFromString context llText $ \llCxxModule -> do
-        codegenLlvmCxxModule llCxxModule triple outPath
-  return outPath
+-- | Bracket the creation of a C++ LLVM Module.  Build the C++ LLVM
+-- Module from a pure LLVM AST.
+withModuleFromAst :: A.Module -> (M.Module -> IO r) -> IO r
+withModuleFromAst ast action = withContext $ \context -> do
+  fromRightErrorTIo $ M.withModuleFromAST context ast action
 
--- | Generate an object file, writing it to the given path.
-codegenLlvmCxxModule :: M.Module -> Triplet.Triplet -> AbsFile -> IO ()
-codegenLlvmCxxModule llCxxModule triple outPath = do
+-- | Bracket the creation of a C++ LLVM Module by reading a file written
+-- in LLVM assembly.
+withModuleFromLlAsmFile :: AbsFile
+                        -- ^ Path to the input file, which must be in
+                        -- LLVM assembly.
+                        -> (M.Module -> IO r)
+                        -> IO r
+withModuleFromLlAsmFile llFile action = do
+  llText <- readFile llFile
+  withContext $ \context -> do
+    fromRightErrorTIo $ M.withModuleFromString context llText action
+
+-- | Generate an object file from an LLVM C++ Module.  The object file
+-- is written to the given path.
+codegen :: M.Module -> Triplet.Triplet -> AbsFile -> IO ()
+codegen llCxxModule triple outPath = do
   target <- lookupTargetSafe triple
   T.withTargetOptions $ \targetOptions -> do
     T.withTargetMachine target (Triplet.str triple) (Triplet.cpu triple)
