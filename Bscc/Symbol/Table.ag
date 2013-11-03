@@ -48,6 +48,7 @@ import Bscc.Symbol.Name (SymbolName)
 
 import qualified Data.Map        -- For UUAGC-generated code for MAPs.
 import qualified Data.Map as Map -- Shorter alias, for our code.
+import Safe (headMay)
 }
 
 
@@ -95,7 +96,7 @@ insert sym = Map.insertWith (flip (++)) (symName sym) [sym]
 lookup :: SymbolName -> SymbolTable -> Maybe Symbol
 lookup n t = case Map.lookup n t of
                Nothing -> Nothing
-               Just xs -> Just $ head xs
+               Just xs -> headMay xs
 
 -- | Union two symbol tables.  Symbols from the left take precedence.
 union :: SymbolTable -> SymbolTable -> SymbolTable

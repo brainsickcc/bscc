@@ -44,6 +44,7 @@ module Bscc.GccArgParse (argsParse, Arguments (..), OptionArgDecl (..),
 import qualified Control.Lens as L
 import Control.Lens.Operators ((&), (^?), (^?!), (.~), (<>~))
 import Data.List (stripPrefix)
+import Safe (headMay)
 
 -- | Positional command line arguments.
 type PosArgs = [String]
@@ -140,8 +141,8 @@ argsParse' :: [OptionDecl opts]
               -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
 argsParse' _ parsed [] = Right parsed
 argsParse' optionDecls parsed (headArg:tailArgs) =
-  case (head headArg) of
-    '-' -> case headArg of
+  case (headMay headArg) of
+    Just '-' -> case headArg of
       -- Argument begins with a hyphen; treat it as an option.
       "--help" -> Right Help
       "--version" -> if "--help" `elem` tailArgs
@@ -160,7 +161,8 @@ argsParse' optionDecls parsed (headArg:tailArgs) =
             Just err -> Left err
             Nothing -> Left $ UnrecognizedOption headArg
     -- Take as a positional arg.
-    _ -> argsParse' optionDecls (parsed & positional <>~ [headArg]) tailArgs
+    Just _ -> argsParse' optionDecls (parsed & positional <>~ [headArg]) tailArgs
+    Nothing -> error "argsParse': empty headArg"
 
 
 -- | Attempt to parse an option.
@@ -189,13 +191,19 @@ tryOption hdUnparsed tlUnparsed parsedOptions option = case (argDecl option) of
        -- For example, we're trying to parse a command line of "-o foo"
        -- (where the "-o foo" is interpreted as if it were without the
        -- quotes and written in the shell).
-    then (if not . null $ tlUnparsed
-          then Right (tail tlUnparsed,
-                      optionUpdater (head tlUnparsed) parsedOptions)
-          else Left $ MissingArgumentToOption option)
+    then let (maybeHdTlUnparsed, tlTlUnparsed) = splitAt1May tlUnparsed
+         in case maybeHdTlUnparsed of
+           Just hdTlUnparsed ->
+             Right (tlTlUnparsed, optionUpdater hdTlUnparsed parsedOptions)
+           Nothing -> Left $ MissingArgumentToOption option
     else case stripPrefix (str option) hdUnparsed of
       -- For example, parse "-ofoo" identically to the "-o foo" above.
       Just suffix -> Right (tlUnparsed,
                             optionUpdater suffix parsedOptions)
       -- This isn't our argument to accept.
       Nothing -> Left $ UnrecognizedOption hdUnparsed
+
+-- | Returns the head and the tail.  Similar to `splitAt 1'.  Total.
+splitAt1May :: [a] -> (Maybe a, [a])
+splitAt1May [] = (Nothing, [])
+splitAt1May (x:xs) = (Just x, xs)
