@@ -136,7 +136,6 @@ doNormalMode options userFiles = do
     putStrLn $ groom typedAst
 
   -- Generate the Intermediate Representation (IR), namely LLVM IR.
-  -- blah2 = forM irAndPaths $ \(ast, path) -> (,) <$> Ir.llvmModuleAstToString ast <*> pure path
   let irAstAndPaths :: [(A.Module, RelFile)]
       irAstAndPaths = Ir.codegen typedAst
   irStringAndPaths <- forM irAstAndPaths $ \(ast', path) ->
