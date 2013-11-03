@@ -21,15 +21,12 @@
 -- Setup.hs itself; see <https://github.com/haskell/cabal/issues/948>.
 module Bscc.SetupHs (setupMain) where
 
-import Distribution.Package (packageId)
-import Distribution.PackageDescription (PackageDescription (package))
+import Distribution.PackageDescription (PackageDescription)
 import Distribution.Simple (defaultMainWithHooks, hookedPrograms,
                             UserHooks (buildHook, instHook, postSDist))
-import Distribution.Simple.Compiler (Compiler (compilerId))
 import Distribution.Simple.InstallDirs (mandir, CopyDest (NoCopyDest))
 import Distribution.Simple.LocalBuildInfo (absoluteInstallDirs,
-                                           LocalBuildInfo (buildDir, compiler,
-                                                           installDirTemplates,
+                                           LocalBuildInfo (buildDir,
                                                            withPrograms))
 import Distribution.Simple.Program (defaultProgramConfiguration,
                                     getProgramOutput, locationPath, Program,
@@ -38,13 +35,12 @@ import Distribution.Simple.Program.Db (requireProgram)
 import Distribution.Simple.Setup (BuildFlags (buildVerbosity), fromFlag,
                                   flagToMaybe,
                                   InstallFlags (installVerbosity),
-                                  SDistFlags (sDistDirectory, sDistDistPref,
+                                  SDistFlags (sDistDirectory,
                                               sDistVerbosity))
 import Distribution.Simple.Utils (die)
 import Distribution.Simple.UUAGC (uuagcLibUserHook)
 import Distribution.Simple.UserHooks (Args)
 import Distribution.Simple.Utils (info, installOrdinaryFile)
-import Distribution.Verbosity (Verbosity)
 import Prelude hiding (FilePath, writeFile)
 import System.Path (AbsDir, asRelDir, asRelFile, mkAbsPathFromCwd, getPathString, (</>))
 import System.Path.Directory (createDirectoryIfMissing)
@@ -54,6 +50,7 @@ import UU.UUAGC (uuagc)
 -- | Effectively the entry point.  Largely this utility's functionality
 -- is stock-Cabal -- functionality.  However, we override the basic
 -- behaviour by adding -- hooks (see `myHooks').
+setupMain :: IO ()
 setupMain = defaultMainWithHooks myHooks
 
 -- | Hooks to properly handle .ag files.  .ag files are compiled to .hs
@@ -122,10 +119,13 @@ hookedPrograms_u :: ([Program] -> [Program]) -> UserHooks -> UserHooks
 hookedPrograms_u f r = r { hookedPrograms = f (hookedPrograms r) }
 
 -- | `buildHook_a' with parameters flipped.
+appendBuildHook :: UserHooks -> BuildHook -> UserHooks
 appendBuildHook = flip buildHook_a
 -- | `installHook_a' with parameters flipped.
+appendInstallHook :: UserHooks -> InstallHook -> UserHooks
 appendInstallHook = flip installHook_a
 -- | `postSDist_a' with parameters flipped.
+appendPostSDist :: UserHooks -> PostSDist -> UserHooks
 appendPostSDist = flip postSDist_a
 -- | Append the programs to the `hookedPrograms' of the `UserHooks'.
 -- This will cause the existence of these programs to be asserted at
@@ -142,7 +142,7 @@ mkAbsDirFromCwd = mkAbsPathFromCwd
 
 -- | Create a man page using help2man.
 manBuildHook :: BuildHook
-manBuildHook descr buildInfo hooks flags = do
+manBuildHook _descr buildInfo _hooks flags = do
   let progsDb = withPrograms buildInfo
       verbosity = fromFlag $ buildVerbosity flags
   absBuildDir <- mkAbsPathFromCwd $ buildDir buildInfo
@@ -160,7 +160,7 @@ manBuildHook descr buildInfo hooks flags = do
 
 -- | Install the man page.
 manInstallHook :: InstallHook
-manInstallHook descr buildInfo hooks flags = do
+manInstallHook descr buildInfo _hooks flags = do
   let verbosity = fromFlag $ installVerbosity flags
   absBuildDir <- mkAbsDirFromCwd $ buildDir buildInfo
   let builtMan = absBuildDir </> asRelFile "bscc.1"
@@ -175,7 +175,7 @@ manInstallHook descr buildInfo hooks flags = do
 -- in the distribution tarball.  Updates the to-be-tarballed directory
 -- tree.
 changeLogPostSDist :: PostSDist
-changeLogPostSDist args flags packageDescr buildInfo = do
+changeLogPostSDist _args flags _packageDescr buildInfo = do
   let progsDb = (maybe defaultProgramConfiguration withPrograms buildInfo)
       verbosity = fromFlag $ sDistVerbosity flags
   info verbosity "Replacing dummy ChangeLog with the version control log"
