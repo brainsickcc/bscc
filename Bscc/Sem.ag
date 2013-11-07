@@ -71,8 +71,7 @@ SEM Module
   | BasModule  lhs.typedAst = SBasModule @path @procs.typedAst @loc.name
                loc.name' = getPathString $ takeBaseName @path
                loc.name = mkSymbolName (if null @loc.name'
-                                        then abort "file has no module name: "
-                                             ++ (getPathString @path)
+                                        then "Module1"
                                         else @loc.name')
 
 ATTR Procs [ | | typedAst USE {:} {[]}: SProcs ]
