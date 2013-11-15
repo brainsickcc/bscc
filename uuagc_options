@@ -15,16 +15,16 @@
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 file: "Bscc/Ast/Plain.ag"
-options: data
+options: data, Werrors
 
 file: "Bscc/Ast/WithSem.ag"
-options: data
+options: data, Werrors
 
 file: "Bscc/Codegen/Ir.ag"
-options: catas, semfuns, signatures, wrappers
+options: catas, semfuns, signatures, wrappers, Werrors
 
 file: "Bscc/Sem.ag"
-options: catas, semfuns, signatures, wrappers
+options: catas, semfuns, signatures, wrappers, Werrors
 
 file: "Bscc/Symbol/Table.ag"
-options: data, catas, semfuns, signatures, wrappers
+options: data, catas, semfuns, signatures, wrappers, Werrors
