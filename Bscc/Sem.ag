@@ -45,7 +45,6 @@ import System.Path (getPathString, RelFile, takeBaseName)
 }
 
 INCLUDE "Ast/Plain.ag"
-INCLUDE "Ast/WithSem.ag"
 
 
 {
