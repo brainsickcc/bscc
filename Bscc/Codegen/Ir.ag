@@ -37,8 +37,8 @@ codegen
 import Bscc.Ast.WithSem
 import Bscc.Symbol.Name
 
-import Control.Category ((>>>))
 import Control.Exception (throwIO)
+import Control.Lens.Operators ((&), (<&>))
 import Control.Monad ((>=>))
 import Control.Monad.Trans.Error (ErrorT, runErrorT)
 import qualified Data.ByteString as B
@@ -114,18 +114,21 @@ ATTR SModule      [ | | ir: {(A.Module, RelFile)} ]
 SEM SModule
   | SBasModule  lhs.ir = (A.defaultModule
                           {
-                            A.moduleDefinitions = toList .
-                                                  fmap A.GlobalDefinition $
-                                                    @loc.fileLevelDecls <>
-                                                    @procs.definition
+                            A.moduleDefinitions =
+                              @loc.fileLevelDecls <> @procs.definition
+                              <&> A.GlobalDefinition
+                              & toList
                           },
                           takeBaseName @path <.> "ll")
                 loc.fileLevelDecls = @procs.fileLevelDecls <>
                                      @loc.declsUsedNonLocalProcs
                 loc.declsUsedNonLocalProcs =
-                    (fmap (procProtoGetDeclIr @lhs.inProject @name) .
-                     Seq.fromList .
-                     Set.elems) @procs.usedNonLocalProcs
+                {
+                  @procs.usedNonLocalProcs
+                  & Set.elems
+                  & Seq.fromList
+                  <&> procProtoGetDeclIr @lhs.inProject @name
+                }
 {
 -- | Calling a procedure defined in another file requires a declaration
 -- in the file you are generating code for.  This function takes the
@@ -277,9 +280,10 @@ word16sToIr xs = C.Array (T.IntegerType 16)
 -- | Convert a standard Haskell string to a list of UTF-16 codepoints
 -- (with host endianness).  Adds a trailing NUL.
 hsStringToWord16s :: String -> [Word16]
-hsStringToWord16s = T.pack >>> encodeUtf16BE >>> B.unpack >>> takePairs >>>
-                    map (uncurry word8sToWord16) >>>
-                    (++ [0])
+hsStringToWord16s xs = xs
+                       & T.pack & encodeUtf16BE & B.unpack & takePairs
+                       <&> uncurry word8sToWord16
+                       & (++ [0])
 
 -- | Convert a list into a list of pairs, by taking two consecutive
 -- elements at a time.
