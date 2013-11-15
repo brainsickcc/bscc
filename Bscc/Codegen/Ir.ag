@@ -168,6 +168,9 @@ SEM SProc
                                       (`wrap_SProcRetType` Inh_SProcRetType) .
                                       sem_SProcRetType
 
+ATTR SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
+     [ | | self: SELF ]
+
 ATTR SProcPrototype [ | | importDeclaration: {G.Global}
                           definitionDeclaration: {G.Global}
                           asCallable: {O.CallableOperand}
@@ -190,8 +193,6 @@ SEM SProcPrototype
                     @retType.ty (procName @self)
                     (toList @argDefs.defn, False) [] Nothing 0 Nothing []
 
-ATTR SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
-     [ | | self: SELF ]
 {
 procName :: SProcPrototype -> N.Name
 procName SProcPrototype {implProject_SProcPrototype_SProcPrototype =
