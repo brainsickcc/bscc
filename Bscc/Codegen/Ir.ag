@@ -124,24 +124,12 @@ SEM SModule
                                      @loc.declsUsedNonLocalProcs
                 loc.declsUsedNonLocalProcs =
                 {
-                  @procs.usedNonLocalProcs
-                  & Set.elems
-                  & Seq.fromList
-                  <&> procProtoGetDeclIr @lhs.inProject @name
+                  Seq.fromList @usedNonLocalProcs.importDeclaration
                 }
-{
--- | Calling a procedure defined in another file requires a declaration
--- in the file you are generating code for.  This function takes the
--- name of the Project and then the Module containing the call,
--- and additionally the prototype of the called procedure.  Returns the
--- required declaration.
-procProtoGetDeclIr :: SymbolName -> SymbolName -> SProcPrototype -> G.Global
-procProtoGetDeclIr inProject inModule =  importDeclaration_Syn_SProcPrototype .
-                                         (`wrap_SProcPrototype` inh) .
-                                         sem_SProcPrototype
-  where inh = Inh_SProcPrototype { inProject_Inh_SProcPrototype = inProject,
-                                   inModule_Inh_SProcPrototype = inModule }
-}
+                inst.usedNonLocalProcs : SProcPrototypes
+                inst.usedNonLocalProcs = Set.elems @procs.usedNonLocalProcs
+                usedNonLocalProcs.inProject = @lhs.inProject
+                usedNonLocalProcs.inModule = @name
 
 ATTR SProcs SProc SInProcStmts
      SInProcStmt SExprs [ | | fileLevelDecls USE {<>} {Seq.empty}:
@@ -159,16 +147,16 @@ SEM SProc
         [
           G.BasicBlock (N.UnName 0)
                        (toList @body.instr)
-                       (I.Do $ I.Ret (@loc.retTypeGetDefaultVal @proto.retType)
+                       (I.Do $ I.Ret @retType.defaultVal
                                      [])
         ]
       }
     }
-           loc.retTypeGetDefaultVal = defaultVal_Syn_SProcRetType .
-                                      (`wrap_SProcRetType` Inh_SProcRetType) .
-                                      sem_SProcRetType
+           inst.retType : SProcRetType
+           inst.retType = @proto.retType
 
-ATTR SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
+ATTR SProcPrototypes [ | | importDeclaration USE {:} {[]}: {[G.Global]} ]
+ATTR SProcPrototypes SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
      [ | | self: SELF ]
 
 ATTR SProcPrototype [ | | importDeclaration: {G.Global}
@@ -311,7 +299,7 @@ word8sToWord16 a b = a' * 256 + b'
 -- for, and the module (or project) containing the implementation;
 -- cf. the `isModuleLocal' attribute.
 ATTR SModules SModule [ inProject: SymbolName | | ]
-ATTR SProcs SProc SProcPrototype SInProcStmts SInProcStmt
+ATTR SProcs SProc SProcPrototypes SProcPrototype SInProcStmts SInProcStmt
                       [ inProject: SymbolName
                         inModule: SymbolName  | | ]
 SEM SProject

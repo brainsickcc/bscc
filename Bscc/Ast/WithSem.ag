@@ -39,6 +39,7 @@ MODULE {Bscc.Ast.WithSem}
 SProject (..),
 SModules, SModule (..),
 SProcs, SProc (..),
+SProcPrototypes,
 SProcPrototype (..),       -- $SProcPrototype
 SArgDefs, SArgDef (..),
 SType (..),
@@ -69,6 +70,8 @@ TYPE SProcs = [SProc]
 
 DATA SProc
    | SProc  proto: SProcPrototype  body: SInProcStmts
+
+TYPE SProcPrototypes = [SProcPrototype]
 
 {
 -- $SProcPrototype

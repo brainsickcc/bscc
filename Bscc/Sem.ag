@@ -104,13 +104,9 @@ SEM InProcStmt
                         Just s -> s
                         Nothing -> abort $ "unknown call target: " ++ raw @fn
             in SymTable.proto_Symbol_SymbolProc sym
-          -- Convert each Expr in our list of provided arguments to a
-          -- SExpr, using what is defined in the "SEM Expr" section).
-          loc.args = map (\e -> typedAst_Syn_Expr (wrap_Expr (sem_Expr e)
-                                                             Inh_Expr))
-                         @args.self
-ATTR Exprs Expr [ | | self: SELF ]
+          loc.args = @args.typedAst
 
+ATTR Exprs [ | | typedAst USE {:} {[]}: SExprs ]
 ATTR Expr [ | | typedAst: SExpr ]
 SEM Expr
   | StringLit  lhs.typedAst = SStringLit @val SString
