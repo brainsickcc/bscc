@@ -48,11 +48,24 @@ INCLUDE "Ast/Plain.ag"
 
 
 {
--- | Perform semantic analysis.  Resolve identifiers.  Should resolve
--- and check types, but doesn't fully yet (for example, should check the
--- number and types of function call parameters).
+-- | Perform semantic analysis.  Resolve identifiers, etc.
 --
--- (Unfortunately) failure is reported using synchronous exceptions.
+-- (Unfortunately) failure, such as an inability to resolve an
+-- identifier, is reported using synchronous exceptions.
+--
+-- Unfortunately this function does not check for the following
+-- problems.  Depending on the specific problem this may lead to
+-- exceptions during code generation or linking, or crashes when running
+-- the compiled program:
+--
+--   * Lack of a Main function
+--
+--   * More than one Main function
+--
+--   * Duplicate symbols, for example two functions with the same name
+--     in the same file
+--
+--   * The wrong number or types of function arguments
 semAnalysis :: Project -> SProject
 semAnalysis t = typedAst_Syn_Project $ wrap_Project (sem_Project t) Inh_Project
 }
