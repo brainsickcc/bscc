@@ -34,11 +34,12 @@ semAnalysis
 {
 import Bscc.Ast.Plain
 import Bscc.Ast.WithSem
-import Bscc.Symbol.Name (mkSymbolName, SymbolName, raw)
+import Bscc.Symbol.Name (mkSymbolName, SymbolName)
 import Bscc.Symbol.Table as SymTable
 
+import Data.Monoid ((<>), mempty)
+import qualified Data.Sequence as Seq
 import Prelude hiding (FilePath)
-import Safe (abort)
 import System.Path (getPathString, RelFile, takeBaseName)
 }
 
@@ -47,9 +48,6 @@ INCLUDE "Ast/Plain.ag"
 
 {
 -- | Perform semantic analysis.  Resolve identifiers, etc.
---
--- (Unfortunately) failure, such as an inability to resolve an
--- identifier, is reported using synchronous exceptions.
 --
 -- Unfortunately this function does not check for the following
 -- problems.  Depending on the specific problem this may lead to
@@ -64,9 +62,28 @@ INCLUDE "Ast/Plain.ag"
 --     in the same file
 --
 --   * The wrong number or types of function arguments
-semAnalysis :: Project -> SProject
-semAnalysis t = typedAst_Syn_Project $ wrap_Project (sem_Project t) Inh_Project
+semAnalysis :: Project -> Either (Seq.Seq SemError) SProject
+semAnalysis t =
+  let inh = Inh_Project { errs_Inh_Project = mempty }
+      sems = wrap_Project (sem_Project t) inh
+      errs = errs_Syn_Project sems
+      annotatedAst = typedAst_Syn_Project sems
+  in if Seq.null errs
+     then Right annotatedAst
+     else Left errs
 }
+
+-- * Error handling.
+
+{
+data SemError
+  = SymbolNotFound SymbolName
+  deriving (Eq, Show)
+}
+
+ATTR Project Modules Module Procs Proc InProcStmts InProcStmt
+  [ | errs : {Seq.Seq SemError} | ]
+
 
 -- * This section is the boring and straightforward part of the
 -- transformation.
@@ -106,15 +123,19 @@ SEM Type
 ATTR InProcStmts [ | | typedAst USE {:} {[]}: SInProcStmts ]
 ATTR InProcStmt  [ | | typedAst: SInProcStmt ]
 SEM InProcStmt
-  | Call  lhs.typedAst = SCall @loc.foundCalleeProto @loc.args
-          loc.maybeFoundCallee = SymTable.lookup @fn
+  | Call  loc.maybeFoundCallee = SymTable.lookup @fn
                                                  @lhs.symbolTable
+          loc.errs = case @loc.maybeFoundCallee of
+                       Just s -> mempty
+                       Nothing -> Seq.singleton $ SymbolNotFound @fn
+          +errs = (<> @loc.errs)
           loc.foundCalleeProto =
             let sym = case @loc.maybeFoundCallee of
                         Just s -> s
-                        Nothing -> abort $ "unknown call target: " ++ raw @fn
+                        Nothing -> error "SEM InProcStmt | Call"
             in SymTable.proto_Symbol_SymbolProc sym
           loc.args = @args.typedAst
+          lhs.typedAst = SCall @loc.foundCalleeProto @loc.args
 
 ATTR Exprs [ | | typedAst USE {:} {[]}: SExprs ]
 ATTR Expr [ | | typedAst: SExpr ]

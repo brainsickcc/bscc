@@ -35,11 +35,12 @@ import Control.Error.Util (errLn)
 import qualified Control.Lens as L
 import Control.Lens.Operators ((&), (^.))
 import Control.Monad (forM, forM_, void, when)
+import Data.Foldable (mapM_)
 import Data.Maybe (fromJust)
 import Data.Monoid ((<>), Last (getLast, Last), mappend, mempty, Monoid)
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
-import Prelude hiding (readFile)
+import Prelude hiding (mapM_, readFile)
 import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
 import System.IO.Temp (withSystemTempDirectory)
@@ -137,7 +138,12 @@ doNormalMode options userFiles = do
     putStrLn . groom $ ast
 
   -- Perform semantic analysis.
-  let typedAst = semAnalysis ast
+  typedAst <- case semAnalysis ast of
+    Left errs -> do
+      errLn $ "Encountered errors during semantic analysis:"
+      mapM_ print errs
+      exitFailure
+    Right typedAst -> return typedAst
   when (options^.verbose & getLast & fromJust) $ do
     putStrLn "\nSemantic analysis result:"
     putStrLn $ groom typedAst
