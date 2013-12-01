@@ -22,7 +22,7 @@ description:
   The Brainsick code compiler (bscc) is a compiler for a dialect of the
   BASIC language.  In particular, bscc aims to be compatible with the
   Visual Basic for Applications (VBA) language dialect.
-version:            0.1.1
+version:            0.1.2
 cabal-version:      >=1.18
 license:            AGPL-3
 license-file:       COPYING
