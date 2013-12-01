@@ -118,3 +118,4 @@ TYPE Exprs = [Expr]
 }
 DATA Expr
    | StringLit  val: String
+DERIVING Expr: Eq

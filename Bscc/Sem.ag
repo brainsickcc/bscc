@@ -34,9 +34,12 @@ semAnalysis
 {
 import Bscc.Ast.Plain
 import Bscc.Ast.WithSem
+import Bscc.Sem.Internal.Types
 import Bscc.Symbol.Name (mkSymbolName, SymbolName)
 import Bscc.Symbol.Table as SymTable
 
+import Control.Lens.Operators ((<&>))
+import Data.Foldable (toList)
 import Data.Monoid ((<>), mempty)
 import qualified Data.Sequence as Seq
 import Prelude hiding (FilePath)
@@ -44,16 +47,12 @@ import System.Path (getPathString, RelFile, takeBaseName)
 }
 
 INCLUDE "Ast/Plain.ag"
+INCLUDE "Ast/WithSem.ag"
+INCLUDE "Sem/Internal/Types.ag"
 
 
 {
 -- | Perform semantic analysis.  Resolve identifiers, etc.
---
--- Unfortunately this function does not check for the following
--- problems.  This may lead to crashes when running the compiled
--- program:
---
---   * The wrong number or types of function arguments
 semAnalysis :: Project -> Either (Seq.Seq SemError) SProject
 semAnalysis t =
   let inh = Inh_Project { errs_Inh_Project = mempty }
@@ -75,6 +74,8 @@ data SemError
   -- Not subsumed by DuplicateSymbol, because that deals with duplicates
   --  within a single module:
   | SubMainTooMany
+  | CallArgumentWrongType  { expr :: Expr, expectedType :: SType }
+  | CallArgumentsWrongLength { callee :: SymbolName }
   deriving (Eq, Show)
 }
 
@@ -84,6 +85,10 @@ ATTR Project Modules Module Procs Proc InProcStmts InProcStmt
 
 -- * This section is the boring and straightforward part of the
 -- transformation.
+
+ATTR Exprs Expr
+     SProcPrototype SArgDefs SArgDef SType SProcRetType SExpr
+     [ | | self: SELF ]
 
 ATTR Project [ | | typedAst: SProject ]
 SEM Project
@@ -122,22 +127,42 @@ ATTR InProcStmt  [ | | typedAst: SInProcStmt ]
 SEM InProcStmt
   | Call  loc.maybeFoundCallee = SymTable.lookup @fn
                                                  @lhs.symbolTable
-          loc.errs = case @loc.maybeFoundCallee of
-                       Just s -> mempty
-                       Nothing -> Seq.singleton $ SymbolNotFound @fn
-          +errs = (<> @loc.errs)
-          loc.foundCalleeProto =
-            let sym = case @loc.maybeFoundCallee of
-                        Just s -> s
-                        Nothing -> error "SEM InProcStmt | Call"
-            in SymTable.proto_Symbol_SymbolProc sym
-          loc.args = @args.typedAst
-          lhs.typedAst = SCall @loc.foundCalleeProto @loc.args
+          loc.errsNotFound = case @loc.maybeFoundCallee of
+                               Just s -> mempty
+                               Nothing -> Seq.singleton $ SymbolNotFound @fn
+          loc.maybeFoundCalleeProto =
+            @loc.maybeFoundCallee <&> SymTable.proto_Symbol_SymbolProc
+          inst.foundCalleeProto : SProcPrototype
+          inst.foundCalleeProto =
+            case @loc.maybeFoundCalleeProto of
+              Just s -> s
+              Nothing -> error "SEM InProcStmt | Call: foundCalleeProto"
+          inst.foundCalleeArgDefs : SArgDefs
+          inst.foundCalleeArgDefs = toList @foundCalleeProto.argDefs
+          inst.coercedArgs : CoercedExprs
+          inst.coercedArgs = zip (toList @args.self) (@foundCalleeArgDefs.ty)
+          loc.errsBadArgs =
+            if not $ Seq.null @loc.errsNotFound
+            -- Can't determine if the arguments are invalid if we can't
+            -- find the function being called.
+            then mempty
+            else if length @args.self /= length @foundCalleeProto.argDefs
+                 then Seq.singleton $ CallArgumentsWrongLength @fn
+                 else @coercedArgs.coercionErrs
+          +errs = (<> @loc.errsNotFound <> @loc.errsBadArgs)
+          loc.args = if Seq.null @loc.errsBadArgs
+                     then @coercedArgs.typedAst
+                     else error "SEM InProcStmt | Call: loc.args"
+          lhs.typedAst = SCall @foundCalleeProto.self @loc.args
 
-ATTR Exprs [ | | typedAst USE {:} {[]}: SExprs ]
-ATTR Expr [ | | typedAst: SExpr ]
-SEM Expr
-  | StringLit  lhs.typedAst = SStringLit @val SString
+ATTR SProcPrototype [ | | argDefs: SArgDefs ]
+SEM SProcPrototype
+  | SProcPrototype  lhs.argDefs = @argDefs.self
+
+ATTR SArgDefs [ | | ty USE {:} {[]}: {[SType]} ]
+ATTR SArgDef [ | | ty: SType ]
+SEM SArgDef
+  | SArgDef  lhs.ty = @ty.self
 
 
 -- * Here beings the magic: the construction of the symbol table, and
@@ -221,3 +246,35 @@ SEM Module
                                                      @lhs.symbolTable of
                                   Just (SymbolProc proto) -> Seq.singleton proto
                                   _ -> mempty
+
+
+-- * Support for expressions and their coercion.
+
+ATTR Expr [ | | translated: SExpr ]
+SEM Expr
+  | StringLit  lhs.translated = SStringLit @val SString
+
+ATTR CoercedExprs [ | | coercionErrs USE {<>} {Seq.empty}: {Seq.Seq SemError} ]
+ATTR CoercedExprs [ | | typedAst USE {:} {[]}: SExprs ]
+ATTR CoercedExpr [ | | coercionErrs: {Seq.Seq SemError}
+                       typedAst: SExpr ]
+SEM CoercedExpr
+  | Tuple  inst.expr : Expr
+           inst.expr = @x1.self
+           inst.expr' : SExpr
+           inst.expr' = @expr.translated
+           loc.targetType = @x2.self
+           loc.coercionErrs =
+             if @expr'.ty == @loc.targetType
+             then mempty
+             else Seq.singleton $
+                  CallArgumentWrongType @expr.self @loc.targetType
+           lhs.typedAst =
+             if Seq.null @loc.coercionErrs
+             then @expr'.self
+             else error "SEM CoercedExpr | Tuple: lhs.typedAst"
+
+ATTR SExpr [ | | ty: SType ]
+SEM SExpr
+  | SStringLit  lhs.ty = @ty.self
+

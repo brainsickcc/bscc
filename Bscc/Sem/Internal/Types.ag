@@ -1,5 +1,8 @@
--- Options for UUAGC, for each .ag file it takes as input
--- Copyright © 2012 Iain Nicol
+-- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
+
+optpragmas
+{
+-- Copyright © 2013 Iain Nicol
 
 -- This program is free software: you can redistribute it and/or modify
 -- it under the terms of the GNU Affero General Public License as published by
@@ -14,21 +17,26 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-file: "Bscc/Ast/Plain.ag"
-options: data, datarecords, genlinepragmas, Werrors
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
-file: "Bscc/Ast/WithSem.ag"
-options: data, datarecords, genlinepragmas, Werrors
+-- | Types required only for the semantic analysis implementation.
 
-file: "Bscc/Codegen/Ir.ag"
-options: catas, genlinepragmas, semfuns, signatures, wrappers, Werrors
+-- This comment separates above doc comment and UUAGC-inserted comment
+}
 
-file: "Bscc/Sem.ag"
-options: catas, genlinepragmas, semfuns, signatures, wrappers, Werrors
+MODULE {Bscc.Sem.Internal.Types}
+-- Exports
+{
+CoercedExprs, CoercedExpr
+}
+-- Imports
+{
+import Bscc.Ast.Plain
+import Bscc.Ast.WithSem
+}
 
-file: "Bscc/Sem/Internal/Types.ag"
-options: data, datarecords, genlinepragmas, Werrors
 
-file: "Bscc/Symbol/Table.ag"
-options: data, datarecords, catas, genlinepragmas, semfuns, signatures,
-         wrappers, Werrors
+TYPE CoercedExprs = [CoercedExpr]
+-- Original expression, and target coercion type.
+TYPE CoercedExpr = (Expr, SType)
