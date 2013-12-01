@@ -1,7 +1,5 @@
 -- -*- auto-fill-mode: nil; indent-tabs-mode: nil; -*-
 
-PRAGMA genlinepragmas
-
 optpragmas
 {
 -- Copyright © 2012 Iain Nicol
