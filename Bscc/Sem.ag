@@ -58,9 +58,6 @@ INCLUDE "Ast/Plain.ag"
 --
 --   * More than one Main function
 --
---   * Duplicate symbols, for example two functions with the same name
---     in the same file
---
 --   * The wrong number or types of function arguments
 semAnalysis :: Project -> Either (Seq.Seq SemError) SProject
 semAnalysis t =
@@ -78,6 +75,7 @@ semAnalysis t =
 {
 data SemError
   = SymbolNotFound SymbolName
+  | DuplicateSymbol { symbol :: SymbolName, module_ :: SymbolName }
   deriving (Eq, Show)
 }
 
@@ -189,9 +187,20 @@ ATTR Modules [ | | exportedSymbols
                    USE {`SymTable.union`} {SymTable.empty}: {SymbolTable} ]
 ATTR Module Procs [ | | exportedSymbols: {SymbolTable} ]
 SEM Procs
-  | Cons  lhs.exportedSymbols = SymTable.insert (SymbolProc @hd.proto)
+  | Cons  loc.errsProc =
+          {
+            case SymTable.lookup @hd.name @tl.exportedSymbols of
+              Just x -> Seq.singleton $ DuplicateSymbol @hd.name @lhs.inModule
+              Nothing -> mempty
+          }
+          +errs = (<> @loc.errsProc)
+          lhs.exportedSymbols = SymTable.insert (SymbolProc @hd.proto)
                                                  @tl.exportedSymbols
   | Nil   lhs.exportedSymbols = SymTable.empty
+
+ATTR Proc [ | | name: SymbolName ]
+SEM Proc
+  | Sub  lhs.name = @name
 
 ATTR Procs Proc [ inModule: SymbolName | | ]
 SEM Module
