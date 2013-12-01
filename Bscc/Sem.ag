@@ -50,13 +50,8 @@ INCLUDE "Ast/Plain.ag"
 -- | Perform semantic analysis.  Resolve identifiers, etc.
 --
 -- Unfortunately this function does not check for the following
--- problems.  Depending on the specific problem this may lead to
--- exceptions during code generation or linking, or crashes when running
--- the compiled program:
---
---   * Lack of a Main function
---
---   * More than one Main function
+-- problems.  This may lead to crashes when running the compiled
+-- program:
 --
 --   * The wrong number or types of function arguments
 semAnalysis :: Project -> Either (Seq.Seq SemError) SProject
@@ -76,6 +71,10 @@ semAnalysis t =
 data SemError
   = SymbolNotFound SymbolName
   | DuplicateSymbol { symbol :: SymbolName, module_ :: SymbolName }
+  | SubMainDoesNotExist
+  -- Not subsumed by DuplicateSymbol, because that deals with duplicates
+  --  within a single module:
+  | SubMainTooMany
   deriving (Eq, Show)
 }
 
@@ -205,3 +204,20 @@ SEM Proc
 ATTR Procs Proc [ inModule: SymbolName | | ]
 SEM Module
   | BasModule  procs.inModule = @loc.name
+
+
+-- * Handling Sub Main, the entry point to the BASIC program.
+SEM Project
+  | Project  loc.mainErrs = case Seq.length @modules.mainProcs of
+                              0 -> Seq.singleton SubMainDoesNotExist
+                              1 -> mempty
+                              _ -> Seq.singleton SubMainTooMany
+             +errs = (@loc.mainErrs <>)
+
+ATTR Modules [ | | mainProcs USE {<>} {Seq.empty}: {Seq.Seq SProcPrototype}]
+ATTR Module [ | | mainProcs: {Seq.Seq SProcPrototype} ]
+SEM Module
+   | BasModule  lhs.mainProcs = case SymTable.lookup (mkSymbolName "Main")
+                                                     @lhs.symbolTable of
+                                  Just (SymbolProc proto) -> Seq.singleton proto
+                                  _ -> mempty
