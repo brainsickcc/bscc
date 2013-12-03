@@ -5,36 +5,36 @@ See the end of the file for license conditions.
 The Brainsick code compiler (bscc) is a compiler for a dialect of the
 BASIC language.
 
-bscc is currently at a very early stage.  See the doc/example directory
-for example programs which bscc can successfully compile.
-
 bscc is free sofware; see the file COPYING for the full text of the
 license.  bscc runs on GNU/Linux hosts, and outputs 32-bit x86 .exe
 files.  Usually, .exe files are programs for Microsoft Windows, a
 proprietary operating system.  Of note, the .exe files that bscc
 produces should fully work under Wine, which is free software.
 
-For compilation and installation instructions, see the file INSTALL.
-The file INSTALL also contains instructions on creating a source
-distribution tarball.
+For compilation and installation instructions for bscc, see the file
+INSTALL.  The file INSTALL also contains instructions for building
+source-level documentation, and creating a source distribution tarball.
 
-bscc has runtime dependencies which you should install when instructed
-to do so by the INSTALL file.  The first is:
+bscc has a runtime dependency which you should install:
   * the 32-bit (cross) compiler from MinGW-w64, version 4.7.0 or later,
     namely the program i686-w64-mingw32-gcc and its usual libraries.
-This is hopefully available from your package manager.
+This is hopefully available from your operating system package manager.
 
-The final runtime dependency of bscc is the library libbsa.  libbsa
-should be available whence you obtained bscc.  You must install libbsa,
-not just build it.  Moreover, to be able to run any .exe files compiled
-by bscc you must copy or symlink libbsa.dll into the same directory as
-the .exe file.  After this, the .exe should run successfully under Wine.
+Additionally, the executables created by bscc have runtime dependencies
+which you should install.  Install Wine from your operating system
+package manager.
+
+The other runtime dependency of bscc-created executables is the library
+libbsa.  libbsa should be available whence you obtained bscc.  You must
+install libbsa per its own INSTALL instructions, and not just build it.
+Moreover, to be able to run any .exe files outputted by bscc you must
+copy or symlink libbsa.dll into the same directory as the .exe file.
+
+Some example programs to be compiled with bscc are bundled with the
+bscc source code.  Look in the <doc/example> folder.
 
 See the file NEWS for information on user-visible changes to this
 program.
-
-Source code documentation can be built by following the instructions
-in the file INSTALL.
 
 
 This program is free software: you can redistribute it and/or modify

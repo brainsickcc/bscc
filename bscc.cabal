@@ -39,8 +39,9 @@ extra-source-files:
   -- The .ag files additionally need to be added to the "other-modules".
   Bscc/Ast/Plain.ag  Bscc/Ast/WithSem.ag  Bscc/Codegen/Ir.ag
   Bscc/Sem.ag  Bscc/Sem/Internal/Types.ag  Bscc/Symbol/Table.ag
-  doc/example/hello/hello.bas  doc/example/hello/README
-  doc/example/hello-awkward/main.bas  doc/example/hello-awkward/README
+  doc/example/README
+  doc/example/hello/hello.bas
+  doc/example/hello-awkward/main.bas
   doc/example/hello-awkward/showmsgbox.bas
   libbsccts/README
   .gitignore AUTHORS bscc-help2man-shim.hs ChangeLog INSTALL NEWS README

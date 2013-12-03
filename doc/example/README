@@ -1,0 +1,39 @@
+Copyright © 2012, 2013 Iain Nicol
+See the end of the file for license conditions.
+
+
+The subfolders of this directory contain some example BASIC programs
+which can be compiled by bscc into executables.
+
+First you must install bscc and its related dependencies.  If doing this
+from source, consult the main README and INSTALL instructions.
+
+Open a terminal.
+
+If bscc is in your path, then change directory to the subfolder of any specific
+example.  Then simply invoke bscc like this:
+  $ bscc -o foo.exe *.bas
+
+Otherwise, and if you installed bscc from source, change directory to
+its source code root.  Then run a command like:
+  $ cabal run -- -o foo.exe doc/example/hello/*.bas
+
+Finally, run the executable which was outputted by bscc:
+  $ wine ./foo.exe
+
+
+This file, <hello/hello.bas>, <hello-awkward/main.bas>, and
+<hello-awkward/showmsgbox.bas> are licensed under the following license.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

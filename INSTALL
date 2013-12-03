@@ -15,7 +15,8 @@ Platform''.  Ensure that the version of cabal-install reported by
   $ cabal --version
 meets the requirement of the cabal-version field in bscc.cabal.
 
-Run the following commands in this directory:
+Run the following commands in this directory to configure, build, and
+install bscc:
   $ cabal sandbox init
   $ cabal update
   $ cabal sandbox add-source bscc-setuphs/
@@ -26,16 +27,11 @@ Run the following commands in this directory:
   $ cabal install --enable-documentation --haddock-executables \
                   --haddock-hyperlink-source
 
-Pay attention to the output of that last command, because it tells you
-where it installed the bscc program to.
+bscc has runtime dependencies, as do any executables outputted by bscc.
+Consult the README for instructions on installing these.
 
-Next you should install bscc's runtime dependencies.  See the README.
-
-Now you can run the bscc executable you previously installed.  Consult
-the examples in the documentation folder.
-
-After you have successfully run ``cabal configure'' above, you can
-create a source distribution tarball by running:
+Creating a source distribution tarball is possible.  After you have
+successfully run ``cabal configure'' above, run:
   $ cabal sdist
 
 
