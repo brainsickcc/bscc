@@ -4,6 +4,15 @@ Copyright © 2012 Iain Nicol
 See the end of the file for license conditions.
 
 
+* Changes in v0.1.2
+
+** Invalid programs are now explicitly rejected.  For example we now
+   enforce that there is a Sub Main.
+
+* Changes in v0.1.1
+
+** The build process for bscc is now much more reliable.
+
 * Changes since the beginning of time
 
 ** A Hello World program, using the MsgBox function, compiles and runs
