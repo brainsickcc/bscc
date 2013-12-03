@@ -69,6 +69,19 @@ INCLUDE "../Ast/WithSem.ag"
 
 {
 -- | IR code generation.
+--
+-- The output of this function should be valid if the input came from
+-- `Bscc.Sem.semAnalysis'.  Otherwise you should keep a few things in
+-- mind to ensure the output here is well behaved:
+--
+--   * There should be precisely one program entry point between all the
+--     modules.  For example, have one Sub Main, and no other Main
+--     procedures.
+--
+--   * Don't feed in any invalid expression trees.  Note that ideally
+--     this would be prevented with the use of GADTs.  However, that is
+--     not possible because we are using a specific preprocessor (UUAGC)
+--     to define the datatypes of, and to process, the trees.
 codegen :: SProject               -- ^ AST with type information.
         -> [(A.Module, RelFile)]  -- ^ The `fst' of each list element is
                                   -- IR.  The `snd' is a (recommended)
