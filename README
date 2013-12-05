@@ -15,20 +15,23 @@ For compilation and installation instructions for bscc, see the file
 INSTALL.  The file INSTALL also contains instructions for building
 source-level documentation, and creating a source distribution tarball.
 
-bscc has a runtime dependency which you should install:
-  * the 32-bit (cross) compiler from MinGW-w64, version 4.7.0 or later,
-    namely the program i686-w64-mingw32-gcc and its usual libraries.
-This is hopefully available from your operating system package manager.
+bscc has two runtime dependencies which you should install.
 
-Additionally, the executables created by bscc have runtime dependencies
-which you should install.  Install Wine from your operating system
+The first is the 32-bit (cross) compiler from MinGW-w64, version 4.7.0
+or later.  Namely this is the program i686-w64-mingw32-gcc and its usual
+libraries.  This is hopefully available from your operating system
 package manager.
 
-The other runtime dependency of bscc-created executables is the library
-libbsa.  libbsa should be available whence you obtained bscc.  You must
-install libbsa per its own INSTALL instructions, and not just build it.
-Moreover, to be able to run any .exe files outputted by bscc you must
-copy or symlink libbsa.dll into the same directory as the .exe file.
+The second runtime dependency of bscc is the library libbsa.  libbsa
+should be available whence you obtained bscc.  You must install libbsa
+per its own INSTALL instructions, and not just build it.  libbsa is
+additionally a runtime dependency of the executables outputted by bscc;
+to be able to run any .exe files outputted by bscc you must copy or
+symlink libbsa.dll into the same directory as the .exe file.
+
+Finally, in terms of dependencies, you should install Wine from your
+operating system package manager.  The executables created by bscc run
+under Wine.
 
 Some example programs to be compiled with bscc are bundled with the
 bscc source code.  Look in the <doc/example> folder.
