@@ -6,7 +6,7 @@ The subfolders of this directory contain some example BASIC programs
 which can be compiled by bscc into executables.
 
 First you must install bscc and its related dependencies.  If doing this
-from source, consult the main README and INSTALL instructions.
+from source, consult bscc's main README and INSTALL instructions.
 
 Open a terminal.
 
