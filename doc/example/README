@@ -20,6 +20,8 @@ its source code root.  Then run a command like:
 
 Finally, run the executable which was outputted by bscc:
   $ wine ./foo.exe
+If this fails then you may have forgotten to copy libbsa.dll, as covered
+in bscc's main README file.
 
 
 This file, <hello/hello.bas>, <hello-awkward/main.bas>, and
