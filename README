@@ -24,10 +24,7 @@ package manager.
 
 The second runtime dependency of bscc is the library libbsa.  libbsa
 should be available whence you obtained bscc.  You must install libbsa
-per its own INSTALL instructions, and not just build it.  libbsa is
-additionally a runtime dependency of the executables outputted by bscc;
-to be able to run any .exe files outputted by bscc you must copy or
-symlink libbsa.dll into the same directory as the .exe file.
+per its own INSTALL instructions, and not just build it.
 
 Finally, in terms of dependencies, you should install Wine from your
 operating system package manager.  The executables created by bscc run

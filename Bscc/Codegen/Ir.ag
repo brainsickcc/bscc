@@ -185,9 +185,7 @@ SEM SProcPrototype
       lhs.asCallable = Right . O.ConstantOperand . C.GlobalReference $
                          procName @self
       loc.retType = @retType.self
-      -- Standard library is compiled to a .dll.
-      loc.linkage = if @implProject == vbaProjectName then L.DLLImport
-                                                      else L.External
+      loc.linkage = L.External
       loc.proto = G.Function @loc.linkage V.Default x86_stdcallcc []
                     @retType.ty (procName @self)
                     (toList @argDefs.defn, False) [] Nothing 0 Nothing []
