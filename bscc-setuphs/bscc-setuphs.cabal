@@ -21,7 +21,7 @@ synopsis:           Setup.hs for bscc
 description:
   Provides the implementation of Setup.hs for the Brainsick code
   compiler (bscc).
-version:            0.1.1
+version:            0.2.0
 cabal-version:      >=1.18
 license:            AGPL-3
 license-file:       COPYING

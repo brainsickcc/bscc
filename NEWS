@@ -4,6 +4,11 @@ Copyright © 2012 Iain Nicol
 See the end of the file for license conditions.
 
 
+* Changes in v0.2.0
+
+** We now statically link the .exe files we generate against libbsa.
+   This makes it easier to run these .exe files.
+
 * Changes in v0.1.2
 
 ** Invalid programs are now explicitly rejected.  For example we now
