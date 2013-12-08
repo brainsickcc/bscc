@@ -13,29 +13,25 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
--- The Haskell Test Framework preprocessor (htfpp) automagically
--- collects appropriately-named HUnit Assertions and Testable QuickCheck
--- properties, defining `htf_thisModulesTests'.
-{-# OPTIONS_GHC -F -pgmF htfpp #-}
-
-module Test.Bscc.HelpAndVersion (htf_thisModulesTests) where
+module Test.Bscc.HelpAndVersion (helpAndVersionTests) where
 
 import Bscc.HelpAndVersion (helpMessage, versionMessage)
 
 import Data.List (isInfixOf)
-import Test.Framework (
-  -- .HUnitWrapper
-  assertBool_,
-  -- .Location
-  makeLoc,
-  -- .TestManager
-  makeTestSuite, makeUnitTest, TestSuite
-  )
+import qualified Test.Tasty as T
+import qualified Test.Tasty.HUnit as HU
+
+helpAndVersionTests =
+  T.testGroup "Bscc.HelpAndVersion"
+  [
+    HU.testCase "help message" test_helpMessage,
+    HU.testCase "version message" test_versionMessage
+  ]
 
 test_helpMessage = do
-  assertBool $ "http://www.brainsick.cc" `isInfixOf` helpMessage
+  HU.assertBool "" $ "http://www.brainsick.cc" `isInfixOf` helpMessage
 
 test_versionMessage = do
   let hasCopyright = "Copyright" `isInfixOf` versionMessage
       acksIain = "Iain Nicol" `isInfixOf` versionMessage
-  assertBool $ hasCopyright && acksIain
+  HU.assertBool "" $ hasCopyright && acksIain
