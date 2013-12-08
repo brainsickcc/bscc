@@ -17,6 +17,8 @@
 -- resolves the HTF test imports, and defines the function
 -- `htf_importedTests'.
 {-# OPTIONS_GHC -F -pgmF htfpp #-}
+-- htfpp generates an unused `htf_Main_thisModulesTests'
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 
 -- | Test suite for bscc.  Usable by Cabal.
 module Main (main) where

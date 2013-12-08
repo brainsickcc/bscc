@@ -172,3 +172,5 @@ test-suite tests
   -- (http://batterseapower.github.com/test-framework/), GHC can
   -- optimize away calls to `error', causing tests to misbehave.
   ghc-options: -O0
+               -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns -Werror
+               -fno-warn-missing-signatures
