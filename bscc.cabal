@@ -71,7 +71,8 @@ executable bscc
   other-modules:
     Bscc.Ast.Plain Bscc.Ast.WithSem
     Bscc.Codegen.Ir Bscc.Codegen.Machine
-    Bscc.GccArgParse Bscc.HelpAndVersion
+    Bscc.GccArgParse
+    Bscc.HelpAndVersion
     Bscc.Lex
     Bscc.Link
     Bscc.Parse
