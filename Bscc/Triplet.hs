@@ -15,7 +15,7 @@
 
 -- | Triplets are used to identify system types, such as the target
 -- machine type.
-module Bscc.Triplet (defaultTarget, cpu, str, Triplet) where
+module Bscc.Triplet (defaultTarget, cpu, str, Triplet (..)) where
 
 -- | A triplet, as known from say cross compilation with Autotools and
 -- GCC.

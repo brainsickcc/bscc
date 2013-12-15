@@ -28,7 +28,8 @@ optpragmas
 MODULE {Bscc.Codegen.Ir}
 -- Exports
 {
-codegen
+codegen,
+x86_stdcallcc
 }
 -- Imports
 {
