@@ -16,7 +16,16 @@
 -- | Test suite for bscc.  Usable by Cabal.
 module Main (main) where
 
+import Test.Bscc.Codegen.Machine
+import Test.Bscc.Codegen.Ir
+import Test.Bscc.GccArgParse
 import Test.Bscc.HelpAndVersion
+import Test.Bscc.Lex
+import Test.Bscc.Main
+import Test.Bscc.Parse
+import Test.Bscc.Sem
+import Test.Bscc.Symbol.Name
+import Test.Bscc.Symbol.Table
 
 import Test.Tasty (defaultMain, testGroup, TestTree)
 
@@ -30,5 +39,14 @@ tests :: TestTree
 tests =
   testGroup "Bscc"
   [
-    helpAndVersionTests
+    codegenMachineTests,
+    codegenIrTests,
+    gccArgParseTests,
+    helpAndVersionTests,
+    lexTests,
+    mainTests,
+    parseTests,
+    semTests,
+    symbolNameTests,
+    symbolTableTests
   ]

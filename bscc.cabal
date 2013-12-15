@@ -147,8 +147,23 @@ test-suite tests
   main-is: run-tests.hs
   hs-source-dirs: test .
   other-modules:
+    Bscc.Ast.Plain Bscc.Ast.WithSem
+    Bscc.Codegen.Ir Bscc.Codegen.Machine
     Bscc.HelpAndVersion
+    Bscc.Main
+    Bscc.Sem
+    Bscc.Sem.Internal.Types
+    Bscc.Symbol.Table
+    Test.Bscc.Codegen.Machine
+    Test.Bscc.Codegen.Ir
+    Test.Bscc.GccArgParse
     Test.Bscc.HelpAndVersion
+    Test.Bscc.Lex
+    Test.Bscc.Main
+    Test.Bscc.Parse
+    Test.Bscc.Sem
+    Test.Bscc.Symbol.Name
+    Test.Bscc.Symbol.Table
   default-language: Haskell2010
   other-extensions:
     -- Same as for bscc.
@@ -158,6 +173,7 @@ test-suite tests
     -- Unique to the test suite.
     tasty == 0.4.* && >= 0.4.1.1,
     tasty-hunit == 0.4.* && >= 0.4.1,
+    tasty-quickcheck == 0.3.* && >= 0.3.1,
     -- Same as for bscc.
     base >= 4.6 && < 5,
     bscc-setuphs == 0.1.1,
