@@ -28,6 +28,9 @@ symbolTableTests =
   [
     HU.testCase "can lookup inserted symbol case insensitive"
                 test_canLookupInsertedSymbolCaseInsensitive,
+    HU.testCase "later insert wins" test_laterInsertWins,
+    HU.testCase "later insert wins regardless of case"
+                test_laterInsertWinsRegardlessOfCase,
     HU.testCase "union is left biased" test_unionIsLeftBiased
   ]
 
@@ -49,6 +52,18 @@ test_canLookupInsertedSymbolCaseInsensitive = do
   let table = insert symbolLowerX empty
       lookupRes = lookup symbolUpperXName table
   (Just symbolLowerX) HU.@=? lookupRes
+
+test_laterInsertWins = do
+  let table1 = insert symbolUpperX1 empty
+      table2 = insert symbolUpperX2 table1
+      lookupRes = lookup symbolUpperXName table2
+  (Just symbolUpperX2) HU.@=? lookupRes
+
+test_laterInsertWinsRegardlessOfCase = do
+  let table1 = insert symbolLowerX empty
+      table2 = insert symbolUpperX1 table1
+      lookupRes = lookup symbolLowerXName table2
+  (Just symbolUpperX1) HU.@=? lookupRes
 
 test_unionIsLeftBiased = do
   let table1 = insert symbolUpperX1 empty
