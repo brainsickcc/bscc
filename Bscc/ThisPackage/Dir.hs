@@ -21,7 +21,9 @@
 -- of our data resources.
 module Bscc.ThisPackage.Dir (getDataFileName) where
 
+#ifdef BUILD
 import Control.Applicative ((<$>))
+#endif
 import Prelude hiding (FilePath)
 import System.Path (AbsFile, RelFile)
 #ifdef BUILD
