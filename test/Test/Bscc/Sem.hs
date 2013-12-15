@@ -17,6 +17,7 @@ module Test.Bscc.Sem (semTests) where
 
 import Bscc.Sem
 import Bscc.Ast.Plain
+import Bscc.Ast.WithSem
 import Bscc.Symbol.Name
 
 import System.Path (asRelFile, RelFile)
@@ -29,6 +30,11 @@ semTests =
     HU.testCase "call needs correct arg types" test_callNeedsCorrectArgTypes,
     HU.testCase "call needs correct num args" test_callNeedsCorrectNumArgs,
     HU.testCase "call needs target" test_callNeedsTarget,
+    HU.testCase "call can resolve target in another module"
+                test_callCanResolveTargetInAnotherModule,
+    HU.testCase ("call resolves with preference to local module regardless of "
+                 ++ "case")
+                test_callResolvesWithPreferenceToLocalModuleRegardlessOfCase,
     HU.testCase "duplicate function name at module scope disallowed"
                 test_duplicateFunctionNameAtModuleScopeDisallowed,
     HU.testCase "need program entry point" test_needProgramEntryPoint,
@@ -51,7 +57,17 @@ assertPassesSem x = case semAnalysis x of
                 "Expecting Sem pass, but Sem failed with errs: " ++ show errs
   Right _proj -> return ()
 
+assertSemsTo :: Project -> SProject -> HU.Assertion
+assertSemsTo input expected = case semAnalysis input of
+  Left errs -> HU.assertFailure $
+               "Expecting Sem pass, but failed with errs: " ++ show errs
+  Right proj -> proj HU.@?= expected
+
 emptySubMain = Sub (mkSymbolName "Main") [] []
+
+module1, module2 :: SymbolName
+module1 = mkSymbolName "Module1"
+module2 = mkSymbolName "Module2"
 
 module1Path, module2Path :: RelFile
 module1Path = (asRelFile "Module1.bas")
@@ -79,6 +95,51 @@ test_callNeedsTarget = assertFailsSem proj
                        project1
         subTargetless = Sub (mkSymbolName "Targetless") []
                             [Call (mkSymbolName "NoSuchTarget") []]
+
+test_callCanResolveTargetInAnotherModule = input `assertSemsTo` expected
+  where input = Project [BasModule module1Path [subMainIn],
+                         BasModule module2Path [subTargetIn]]
+                        project1
+        subMainIn = Sub (mkSymbolName "Main") []
+                      [Call (mkSymbolName "Target") []]
+        subTargetIn = Sub (mkSymbolName "Target") [] []
+        expected = SProject [SBasModule module1Path [subMainOut] module1,
+                             SBasModule module2Path [subTargetOut] module2]
+                            project1
+        subMainOut = SProc (SProcPrototype (mkSymbolName "Main") [] Nothing
+                                           project1 module1)
+                           [SCall targetProto []]
+        subTargetOut = SProc targetProto []
+        targetProto = SProcPrototype (mkSymbolName "Target") [] Nothing
+                                     project1 module2
+
+test_callResolvesWithPreferenceToLocalModuleRegardlessOfCase =
+  input `assertSemsTo` expected
+  where input = Project [BasModule module1Path [subMainIn,
+                                                subTargetWeirdCaseIn],
+                         BasModule module2Path [subTargetCanonCaseIn]]
+                        project1
+        subMainIn = Sub (mkSymbolName "Main") []
+                      [Call (mkSymbolName "Target") []]
+        subTargetWeirdCaseIn = Sub (mkSymbolName "TaRgeT") [] []
+        subTargetCanonCaseIn = Sub (mkSymbolName "Target") [] []
+        expected = SProject [SBasModule module1Path
+                                        [subMainOut, subTargetWeirdCaseOut]
+                                        module1,
+                             SBasModule module2Path
+                                        [subTargetCanonCaseOut]
+                                        module2]
+                            project1
+        subMainOut = SProc (SProcPrototype (mkSymbolName "Main") [] Nothing
+                                           project1 module1)
+                           [SCall subTargetWeirdCaseProto []]
+        subTargetWeirdCaseProto =
+          (SProcPrototype (mkSymbolName "TaRgeT") [] Nothing project1 module1)
+        subTargetWeirdCaseOut = SProc subTargetWeirdCaseProto []
+        subTargetCanonCaseOut =
+          SProc (SProcPrototype (mkSymbolName "Target") [] Nothing
+                                project1 module2)
+                []
 
 test_duplicateFunctionNameAtModuleScopeDisallowed = assertFailsSem proj
   where proj = Project [BasModule module1Path [emptySubMain, emptySubMain]]
