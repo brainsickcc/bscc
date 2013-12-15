@@ -67,7 +67,7 @@ data Arguments opts = Help     -- ^ \--help was given
                         -- | Positional arguments.
                         _positional :: PosArgs
                         }
-                    deriving (Show)
+                    deriving (Eq, Show)
 
 positional :: L.Lens' (Arguments opts) PosArgs
 positional = L.lens _positional $ \s a -> s { _positional = a }

@@ -53,6 +53,7 @@ import System.Path (RelFile)
 }
 
 
+DERIVING *: Eq
 DERIVING *: Show
 
 DATA SProject

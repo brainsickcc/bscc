@@ -59,6 +59,7 @@ DERIVING *: Show
 }
 DATA Symbol
    | SymbolProc  proto: SProcPrototype
+DERIVING Symbol: Eq
 
 -- Ability to extract a name from the various types of symbols.
 ATTR Symbol [ | | name: SymbolName ]
