@@ -244,7 +244,7 @@ ATTR Modules [ | | mainProcs USE {<>} {Seq.empty}: {Seq.Seq SProcPrototype}]
 ATTR Module [ | | mainProcs: {Seq.Seq SProcPrototype} ]
 SEM Module
    | BasModule  lhs.mainProcs = case SymTable.lookup (mkSymbolName "Main")
-                                                     @lhs.symbolTable of
+                                                     @procs.exportedSymbols of
                                   Just (SymbolProc proto) -> Seq.singleton proto
                                   _ -> mempty
 

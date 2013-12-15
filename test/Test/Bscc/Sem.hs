@@ -33,7 +33,9 @@ semTests =
                 test_duplicateFunctionNameAtModuleScopeDisallowed,
     HU.testCase "need program entry point" test_needProgramEntryPoint,
     HU.testCase "Sub Main duplicate disallowed"
-                test_subMainDuplicateDisallowed
+                test_subMainDuplicateDisallowed,
+    HU.testCase "Sub Main one between multiple modules is good"
+                test_subMainOneBetweenMultipleModulesIsGood
   ]
 
 assertFailsSem :: Project -> HU.Assertion
@@ -42,6 +44,12 @@ assertFailsSem x = case semAnalysis x of
   Right proj -> HU.assertFailure $
                 "Expecting Sem failure, but Sem was successful and returned: "
                 ++ show proj
+
+assertPassesSem :: Project -> HU.Assertion
+assertPassesSem x = case semAnalysis x of
+  Left errs -> HU.assertFailure $
+                "Expecting Sem pass, but Sem failed with errs: " ++ show errs
+  Right _proj -> return ()
 
 emptySubMain = Sub (mkSymbolName "Main") [] []
 
@@ -80,6 +88,11 @@ test_duplicateFunctionNameAtModuleScopeDisallowed = assertFailsSem proj
 test_subMainDuplicateDisallowed = assertFailsSem proj
   where proj = Project [BasModule module1Path [emptySubMain],
                         BasModule module2Path [emptySubMain]]
+                       project1
+
+test_subMainOneBetweenMultipleModulesIsGood = assertPassesSem proj
+  where proj = Project [BasModule module1Path [emptySubMain],
+                        BasModule module2Path []]
                        project1
 
 test_needProgramEntryPoint = assertFailsSem proj
