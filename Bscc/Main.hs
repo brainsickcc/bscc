@@ -13,8 +13,8 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
--- | Main (entry) file for the bscc program.
-module Main (main) where
+-- | Implements the entry procedure of the bscc program.
+module Bscc.Main (main) where
 
 import Bscc.Ast.Plain (Project (..))
 import qualified Bscc.Codegen.Ir as Ir

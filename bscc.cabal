@@ -55,7 +55,7 @@ source-repository head
   location: git://git.iainnicol.com/brainsick/bscc.git
 
 executable bscc
-  main-is: Bscc/Main.hs
+  main-is: Main.hs
   -- Set the source directory to the root package directory, as opposed
   -- to say a ``src'' subdirectory.  The advantage of this is that GHCI
   -- running under Emacs, for example, can actually resolve imports.
@@ -75,6 +75,7 @@ executable bscc
     Bscc.HelpAndVersion
     Bscc.Lex
     Bscc.Link
+    Bscc.Main
     Bscc.Parse
     Bscc.Sem
     Bscc.Sem.Internal.Types
