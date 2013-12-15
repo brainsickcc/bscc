@@ -16,7 +16,8 @@
 -- | Machine code generation.
 module Bscc.Codegen.Machine (codegen,
                              withModuleFromAst,
-                             withModuleFromLlAsmFile) where
+                             withModuleFromLlAsmFile,
+                             withModuleFromLlAsmString) where
 
 import qualified Bscc.Triplet as Triplet
 
@@ -50,6 +51,15 @@ withModuleFromLlAsmFile :: AbsFile
                         -> IO r
 withModuleFromLlAsmFile llFile action = do
   llText <- readFile llFile
+  withModuleFromLlAsmString llText action
+
+-- | Bracket the creation of a C++ LLVM Module from LLVM assembly.
+withModuleFromLlAsmString :: String
+                          -- ^ Path to the input file, which must be in
+                          -- LLVM assembly.
+                          -> (M.Module -> IO r)
+                          -> IO r
+withModuleFromLlAsmString llText action = do
   withContext $ \context -> do
     fromRightErrorTIo $ M.withModuleFromString context llText action
 
