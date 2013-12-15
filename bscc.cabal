@@ -93,6 +93,8 @@ executable bscc
   -- source file has to be additionally listed here.  Not doing this can
   -- cause build errors, at least with TemplateHaskell when profiling is
   -- enabled.
+  --
+  -- Keep this in sync with the test-suite.
   other-extensions:
     CPP,
     GADTs
@@ -148,6 +150,10 @@ test-suite tests
     Bscc.HelpAndVersion
     Test.Bscc.HelpAndVersion
   default-language: Haskell2010
+  other-extensions:
+    -- Same as for bscc.
+    CPP,
+    GADTs
   build-depends:
     -- Unique to the test suite.
     tasty == 0.4.* && >= 0.4.1.1,
