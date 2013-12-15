@@ -92,6 +92,7 @@ DATA SArgDef
    | SArgDef  name: SymbolName  ty: SType
 
 DATA SType
+   | SDummySecondType
    | SString
 
 {

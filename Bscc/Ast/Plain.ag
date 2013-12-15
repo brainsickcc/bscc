@@ -98,6 +98,8 @@ DATA ArgDef
 -- type, not a Haskell type.
 }
 DATA Type
+   -- Dummy type for testing; remove when have two real types
+   | DummySecondType
    | String
 
 TYPE InProcStmts = [InProcStmt]

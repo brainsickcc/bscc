@@ -214,6 +214,9 @@ ATTR SType [ | | defaultVal: {O.Operand}
                  ty: {T.Type} ]
 
 SEM SType
+  | SDummySecondType  loc.ty = error "Ir SType | SDummySecondType: ty"
+                      lhs.defaultVal =
+                        error "Ir SType | SDummySecondType: defaultVal"
   | SString  loc.ty = (T.PointerType (T.IntegerType 16) (AddrSpace 0))
              lhs.defaultVal = O.ConstantOperand $ C.Null @loc.ty
 

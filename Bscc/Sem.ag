@@ -120,6 +120,7 @@ SEM ArgDef
 
 ATTR Type [ | | typedAst: SType ]
 SEM Type
+  | DummySecondType  lhs.typedAst = SDummySecondType
   | String  lhs.typedAst = SString
 
 ATTR InProcStmts [ | | typedAst USE {:} {[]}: SInProcStmts ]
