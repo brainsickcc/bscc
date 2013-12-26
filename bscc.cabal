@@ -204,3 +204,4 @@ test-suite tests
   ghc-options: -O0
                -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns
                -fno-warn-missing-signatures
+               -threaded

@@ -24,7 +24,8 @@ and install bscc:
   $ cabal sandbox add-source bscc-setuphs/
   $ cabal install --only-dep --enable-tests -fshared-llvm
   $ cabal build
-  $ cabal test
+  $ cabal test --show-details=always \
+               --test-options="--num-threads 4 +RTS -N4 -RTS"
   $ cabal install --enable-documentation --haddock-executables \
                   --haddock-hyperlink-source
 
