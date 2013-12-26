@@ -11,12 +11,14 @@ in bscc.cabal to determine the approach LLVM version.
 
 Install GHC, a Haskell compiler; also install a package manager called
 cabal-install.  You may find these bundled together in the ``Haskell
-Platform''.  Ensure that the version of cabal-install reported by
+Platform''.  Also install haddock and hscolour, if not getting these
+from the Haskell Platform.  Ensure that the version of cabal-install
+reported by
   $ cabal --version
 meets the requirement of the cabal-version field in bscc.cabal.
 
-Run the following commands in this directory to configure, build, and
-install bscc:
+Run the following commands in this directory to configure, build, test,
+and install bscc:
   $ cabal sandbox init
   $ cabal update
   $ cabal sandbox add-source bscc-setuphs/

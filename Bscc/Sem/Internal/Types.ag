@@ -20,9 +20,11 @@ optpragmas
 {-# OPTIONS_GHC -fno-warn-unused-binds #-}
 {-# OPTIONS_GHC -fno-warn-unused-matches #-}
 
--- | Types required only for the semantic analysis implementation.
+-- (Just below is the module-level documentation.  However, we cannot
+-- make it a Haddock comment because that would cause compile failures
+-- when we are INCLUDEd from another .ag file with its own doc comment.)
 
--- This comment separates above doc comment and UUAGC-inserted comment
+-- Types required only for the semantic analysis implementation.
 }
 
 MODULE {Bscc.Sem.Internal.Types}

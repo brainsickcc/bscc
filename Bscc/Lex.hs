@@ -106,7 +106,7 @@ identOrKwUnsureWhich = (:) <$> initialIdent <*> many nonInitialIdent
         asciiDigit :: Parser Char
         asciiDigit = oneOf "01234567890"
 
--- | Map of each keyword to its corresponding token type.
+-- | Map of each keyword to its corresponding token.
 kwMap :: Map.Map SymbolName TokenNoPos
 kwMap = Map.fromList (map (\(a, b) -> (mkSymbolName a, b))
                       [("Call", TKwCall),

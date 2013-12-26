@@ -62,7 +62,7 @@ uuagcHooks = uuagcLibUserHook uuagc
 -- distribution tarball is created.
 myHooks :: UserHooks
 myHooks = (uuagcHooks
-           --Man page generation and installation.
+           -- Man page generation and installation.
            `appendHookedPrograms` [help2man, runhaskell]
            `appendBuildHook` manBuildHook
            `appendInstallHook` manInstallHook
@@ -104,7 +104,6 @@ installHook_a v r = r { instHook = combinedInstallHook }
           v descr buildInfo hooks flags
 
 -- | Append a `PostSDist' hook to the `postSDist' of the `UserHooks'.
--- `PostSDist' hook.
 postSDist_a :: PostSDist -> UserHooks -> UserHooks
 postSDist_a v r = r { postSDist = combinedSDistHook }
   where combinedSDistHook args flags packageDescr buildInfo = do
@@ -128,7 +127,7 @@ appendPostSDist = flip postSDist_a
 -- | Append the programs to the `hookedPrograms' of the `UserHooks'.
 -- This will cause the existence of these programs to be asserted at
 -- ``cabal configure time.  Such programs should probably also be added
--- to to the build-tools section of our .cabal file.
+-- to the build-tools section of our .cabal file.
 appendHookedPrograms :: UserHooks -> [Program] -> UserHooks
 appendHookedPrograms hooks progs = hookedPrograms_u (++ progs) hooks
 
@@ -172,7 +171,7 @@ manInstallHook descr buildInfo _hooks flags = do
 
 -- | Ensures a real change log from the version control system ends up
 -- in the distribution tarball.  Updates the to-be-tarballed directory
--- tree.
+-- tree.  Requires git at runtime.
 changeLogPostSDist :: PostSDist
 changeLogPostSDist _args flags _packageDescr buildInfo = do
   let progsDb = (maybe defaultProgramConfiguration withPrograms buildInfo)

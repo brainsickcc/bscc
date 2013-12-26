@@ -22,6 +22,10 @@ description:
   The Brainsick code compiler (bscc) is a compiler for a dialect of the
   BASIC language.  In particular, bscc aims to be compatible with the
   Visual Basic for Applications (VBA) language dialect.
+-- When increasing the version number, also update:
+--   * the `bscc-setuphs' dependencies in this file.
+--   * `version' in bscc-setuphs.cabal
+--   * `version' in Bscc.ThisPackage.Info
 version:            0.2.0
 cabal-version:      >=1.20
 license:            AGPL-3
@@ -58,10 +62,10 @@ executable bscc
   main-is: Main.hs
   -- Set the source directory to the root package directory, as opposed
   -- to say a ``src'' subdirectory.  The advantage of this is that GHCI
-  -- running under Emacs, for example, can actually resolve imports.
-  -- Thanks to namespacing (Bscc.Foo -> Bscc/Foo.hs), the source files
-  -- thankfully are not intermingled with the build system files in the
-  -- package root.
+  -- running under Emacs, for example, can actually resolve
+  -- package-local imports.  Thanks to namespacing (Bscc.Foo ->
+  -- Bscc/Foo.hs), the source files thankfully are not intermingled with
+  -- the build system files in the package root.
   hs-source-dirs: .
   -- Just like for .hs files, the .ag modules must be added here.
   -- Additionally, the .ag files must be added to "extra-source-files",
@@ -101,7 +105,7 @@ executable bscc
     NoMonomorphismRestriction,
     TemplateHaskell
   -- The dependency version requirements are likely stricter than
-  -- necessary, to avoid the need to test we can be build against
+  -- necessary, to avoid the need to test we can be built against
   -- previous APIs.
   build-depends:
     -- I would have liked to write code against the Haskell standard
