@@ -13,9 +13,6 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
--- This file is compiled into a standalone executable by the ``cabal
--- configure'' command, and so must be called module Main and not Setup!
-
 -- | Provides the implementation of Setup.hs for bscc.  This is required
 -- because Cabal does not let you specify build dependencies for
 -- Setup.hs itself; see <https://github.com/haskell/cabal/issues/948>.
