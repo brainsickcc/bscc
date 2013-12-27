@@ -41,7 +41,7 @@
 -- arguments @-a foo@.
 module Bscc.GccArgParse (argsParse, Arguments (..), OptionArgDecl (..),
                          OptionDecl (..), ParseFailure (..), PosArgs,
-                         UnparsedArg, UnparsedArgs)
+                         UnparsedArg)
        where
 
 import qualified Control.Lens as L
@@ -79,9 +79,8 @@ defaultArguments :: Monoid opts => Arguments opts
 defaultArguments = Normal { _options = mempty,
                             _positional = [] }
 
--- | Command line arguments which have not yet been parsed.
+-- | A command line argument which has not yet been parsed.
 type UnparsedArg = String
-type UnparsedArgs = [UnparsedArg]
 
 -- | Declares an option such that we can parse the option with
 -- `argsParse', suitably handling its parameters.  @opts@ is per
@@ -121,14 +120,14 @@ data ParseFailure optDecl
 argsParse :: Monoid opts =>
              [OptionDecl opts] -- ^ List of declarations of the options
                                --   we support.
-            -> UnparsedArgs    -- ^ Command line arguments to parse.
+            -> [UnparsedArg]   -- ^ Command line arguments to parse.
             -- | Parse result.
             -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
 argsParse optionDecls = argsParse' optionDecls defaultArguments
 
 argsParse' :: [OptionDecl opts]
               -> Arguments opts
-              -> UnparsedArgs
+              -> [UnparsedArg]
               -> Either (ParseFailure (OptionDecl opts)) (Arguments opts)
 argsParse' _ parsed [] = Right parsed
 argsParse' optionDecls parsed (headArg:tailArgs) =
@@ -159,17 +158,17 @@ argsParse' optionDecls parsed (headArg:tailArgs) =
 -- | Attempt to parse an option.
 tryOption  :: UnparsedArg
               -- ^ Head of the unparsed arguments.
-              -> UnparsedArgs
+              -> [UnparsedArg]
               -- ^ Tail.
               -> opts
               -- ^ Data structure representing the result of the options
               -- parsed so far [cf. `options']).
               -> OptionDecl opts
               -- ^ Declaration of the option and its effect.
-              -> Either (ParseFailure (OptionDecl opts)) (UnparsedArgs, opts)
+              -> Either (ParseFailure (OptionDecl opts)) ([UnparsedArg], opts)
               -- ^ If parsing is successful, we essentially return the
               --   first parameter updated, as the `Right'.  The updated
-              --   `UnparsedArgs' is necessarily shorter than as
+              --   [`UnparsedArg'] is necessarily shorter than as
               --   inputted.
 tryOption hdUnparsed tlUnparsed parsedOptions option = case (argDecl option) of
   DeclNoArgs implicitOptionVal optionSetter ->
