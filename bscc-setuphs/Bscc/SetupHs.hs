@@ -42,7 +42,8 @@ import Distribution.Simple.UUAGC (uuagcLibUserHook)
 import Distribution.Simple.UserHooks (Args)
 import Distribution.Simple.Utils (info, installOrdinaryFile)
 import Prelude hiding (FilePath, writeFile)
-import System.Path (AbsDir, asRelDir, asRelFile, mkAbsPathFromCwd, getPathString, (</>))
+import System.Path (AbsDir, asRelDir, asRelFile, mkAbsPathFromCwd,
+                    getPathString, (</>))
 import System.Path.Directory (createDirectoryIfMissing)
 import System.Path.IO (writeFile)
 import UU.UUAGC (uuagc)
@@ -169,7 +170,8 @@ manInstallHook descr buildInfo _hooks flags = do
   let destMan1Dir = absManDir </> asRelDir "man1"
       destMan = destMan1Dir </> asRelFile "bscc.1"
   createDirectoryIfMissing True destMan1Dir
-  installOrdinaryFile verbosity (getPathString builtMan) (getPathString destMan)
+  installOrdinaryFile verbosity (getPathString builtMan)
+                                (getPathString destMan)
 
 -- | Ensures a real change log from the version control system ends up
 -- in the distribution tarball.  Updates the to-be-tarballed directory
