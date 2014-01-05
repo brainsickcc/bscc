@@ -24,7 +24,7 @@ module Bscc.ThisPackage.Info (bugsUrl, copyright, homepage, version) where
 
 -- | @bug-reports@ field from our .cabal file.
 bugsUrl :: String
-bugsUrl = "http://www.brainsick.cc/bugs/"
+bugsUrl = "https://www.brainsick.cc/bugs/"
 
 -- | @copyright@ field from our .cabal file.
 copyright :: String
@@ -32,7 +32,7 @@ copyright = "© 2012, 2013 Iain Nicol"
 
 -- | @homepage@ field from our .cabal file.
 homepage :: String
-homepage = "http://www.brainsick.cc/"
+homepage = "https://www.brainsick.cc/"
 
 -- | @version@ field from our .cabal file.
 version :: String

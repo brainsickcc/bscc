@@ -27,15 +27,15 @@ license:            AGPL-3
 license-file:       COPYING
 copyright:          © 2012, 2013 Iain Nicol
 author:             Iain Nicol
-maintainer:         http://www.brainsick.cc/
+maintainer:         https://www.brainsick.cc/
 category:           Languages
-homepage:           http://www.brainsick.cc/
-bug-reports:        http://www.brainsick.cc/bugs/
+homepage:           https://www.brainsick.cc/
+bug-reports:        https://www.brainsick.cc/bugs/
 build-type:         Simple
 
 source-repository head
   type: git
-  location: git://git.iainnicol.com/brainsick/bscc.git
+  location: https://git.iainnicol.com/brainsick/bscc.git
 
 library
   exposed-modules: Bscc.SetupHs
