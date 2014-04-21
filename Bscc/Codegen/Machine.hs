@@ -24,6 +24,7 @@ import qualified Bscc.Triplet as Triplet
 import Control.Exception (throwIO)
 import Control.Monad ((>=>))
 import Control.Monad.Trans.Error (ErrorT, runErrorT)
+import qualified Data.ByteString as B
 import qualified Data.Set as Set
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
@@ -73,10 +74,10 @@ codegen llCxxModule triple outPath = do
                         Set.empty
                         targetOptions Relocation.Default CodeModel.Default
                         CodeGenOpt.Default $
-                        \machine -> fromRightErrorTIo $
-                                    M.writeObjectToFile machine
-                                                        (getPathString outPath)
-                                                        llCxxModule
+                        \machine -> do
+                          bs <- fromRightErrorTIo
+                                  (M.moduleObject machine llCxxModule)
+                          B.writeFile (getPathString outPath) bs
 
 fromRightErrorTIo :: Show a => ErrorT a IO b -> IO b
 fromRightErrorTIo = runErrorT >=> either (throwIO . userError . show) return
