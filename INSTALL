@@ -20,7 +20,7 @@ install bscc:
   $ cabal sandbox init
   $ cabal update
   $ cabal sandbox add-source bscc-setuphs/
-  $ cabal install --only-dep --enable-tests
+  $ cabal install --only-dep --enable-tests -fshared-llvm
   $ cabal build
   $ cabal test
   $ cabal install --enable-documentation --haddock-executables \
