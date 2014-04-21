@@ -13,6 +13,8 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 -- | Parse our dialect of the BASIC language.  The parsers here work on
 -- tokenized ("Bscc.Lex") input.
 module Bscc.Parse (parseFileContents) where

@@ -97,7 +97,8 @@ executable bscc
   -- Keep this in sync with the test-suite.
   other-extensions:
     CPP,
-    GADTs
+    GADTs,
+    NoMonomorphismRestriction
   -- The dependency version requirements are likely stricter than
   -- necessary, to avoid the need to test we can be build against
   -- previous APIs.
