@@ -62,7 +62,7 @@ withModuleFromLlAsmString :: String
                           -> IO r
 withModuleFromLlAsmString llText action = do
   withContext $ \context -> do
-    fromRightErrorTIo $ M.withModuleFromString context llText action
+    fromRightErrorTIo $ M.withModuleFromLLVMAssembly context llText action
 
 -- | Generate an object file from an LLVM C++ Module.  The object file
 -- is written to the given path.

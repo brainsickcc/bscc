@@ -46,7 +46,7 @@ assertCodegensTo :: SProject -> [(String, RelFile)] -> HU.Assertion
 assertCodegensTo proj expected = do
   let pureAstToAsm :: (A.Module, RelFile) -> IO (String, RelFile)
       pureAstToAsm (ast, f) = (,)
-                              <$> withModuleFromAst ast M.moduleString
+                              <$> withModuleFromAst ast M.moduleLLVMAssembly
                               <*> pure f
   let asmToPureAst :: (String, RelFile) -> IO (A.Module, RelFile)
       asmToPureAst (asm, f) = (,)

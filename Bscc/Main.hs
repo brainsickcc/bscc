@@ -153,7 +153,7 @@ doNormalMode options userFiles = do
     putStrLn "\nLLVM IR:"
     forM_ irAstAndPaths $ \(irAst, path) -> do
       putStrLn $ getPathString path ++ ":"
-      content <- Mach.withModuleFromAst irAst M.moduleString
+      content <- Mach.withModuleFromAst irAst M.moduleLLVMAssembly
       putStr content
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
