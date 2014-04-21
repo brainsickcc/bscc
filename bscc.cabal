@@ -98,7 +98,8 @@ executable bscc
   other-extensions:
     CPP,
     GADTs,
-    NoMonomorphismRestriction
+    NoMonomorphismRestriction,
+    TemplateHaskell
   -- The dependency version requirements are likely stricter than
   -- necessary, to avoid the need to test we can be build against
   -- previous APIs.

@@ -13,6 +13,8 @@
 -- You should have received a copy of the GNU Affero General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | Implements the entry procedure of the bscc program.
 module Bscc.Main (main) where
 
@@ -54,18 +56,13 @@ import Text.Groom (groom)
 data BsccOptions = BsccOptions { _outputName :: Last FilePath,
                                  _verbose :: Last Bool }
                    deriving (Show)
+$(L.makeLenses ''BsccOptions)
 
 instance Monoid BsccOptions where
   mempty = BsccOptions { _outputName = mempty,
                          _verbose = mempty }
   x `mappend` y = BsccOptions { _outputName = _outputName x <> _outputName y,
                                 _verbose = _verbose x <> _verbose y }
-
-outputName :: L.Lens' BsccOptions (Last FilePath)
-outputName = L.lens _outputName $ \s a -> s { _outputName = a }
-
-verbose :: L.Lens' BsccOptions (Last Bool)
-verbose = L.lens _verbose $ \s a -> s { _verbose = a }
 
 -- | Represents successfully parsing zero command line options.
 defaultOptions :: BsccOptions
