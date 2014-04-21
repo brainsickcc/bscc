@@ -112,7 +112,7 @@ executable bscc
 
     -- Keep dependencies in sync with the test-suite.
     base >= 4.6 && < 5,
-    bscc-setuphs == 0.1.1,
+    bscc-setuphs == 0.2.0,
     bytestring == 0.10.*,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
@@ -176,7 +176,7 @@ test-suite tests
     tasty-quickcheck == 0.3.* && >= 0.3.1,
     -- Same as for bscc.
     base >= 4.6 && < 5,
-    bscc-setuphs == 0.1.1,
+    bscc-setuphs == 0.2.0,
     bytestring == 0.10.*,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
