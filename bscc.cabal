@@ -141,7 +141,7 @@ executable bscc
     help2man,
     runhaskell
   cpp-options: -DBUILD
-  ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns -Werror
+  ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns
 
 
 test-suite tests
@@ -198,5 +198,5 @@ test-suite tests
   -- (http://batterseapower.github.com/test-framework/), GHC can
   -- optimize away calls to `error', causing tests to misbehave.
   ghc-options: -O0
-               -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns -Werror
+               -Wall -fwarn-tabs -fwarn-incomplete-uni-patterns
                -fno-warn-missing-signatures
