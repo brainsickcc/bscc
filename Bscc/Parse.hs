@@ -25,7 +25,8 @@ import Bscc.Token
 
 import Control.Applicative ((<*), (<*>), (*>), (<$>), pure)
 import Prelude hiding (FilePath)
-import System.Path (AbsFile, getPathString, makeRelative, rootDir)
+import System.Path (AbsFile, makeRelative, rootDir)
+import qualified System.Path as Path
 import Text.Parsec.Combinator (endBy, eof, sepEndBy, sepBy)
 import Text.Parsec.Error (ParseError)
 import Text.Parsec.Prim ((<?>), parse, Parsec, skipMany, token)
@@ -43,7 +44,7 @@ parseFileContents :: [Token]      -- ^ Tokens, from lexing the file.
                      -> AbsFile
                      -> Either ParseError Module
 parseFileContents tokens path =
-  parse (basModule path) (getPathString path) tokens
+  parse (basModule path) (Path.toString path) tokens
 
 
 -- * Simple parsers, or general purpose parser combinators

@@ -21,7 +21,8 @@ import Bscc.Symbol.Name (mkSymbolName)
 import Bscc.Token
 
 import Control.Applicative (pure, (<$>), (<*>))
-import System.Path (AbsFile, asAbsFile, getPathString)
+import System.Path (AbsFile)
+import qualified System.Path as Path
 import qualified Test.Tasty as T
 import qualified Test.Tasty.QuickCheck as QC
 import Text.Parsec.Error (ParseError)
@@ -42,14 +43,14 @@ parse ts = parseFileContents (addDummyPositions ts) dummyFilename
 addDummyPositions :: [TokenNoPos] -> [Token]
 addDummyPositions ts = zip (positions ts) ts
   where positions ts' = scanl (incrementPos)
-                              (initialPos $ getPathString dummyFilename)
+                              (initialPos $ Path.toString dummyFilename)
                               ts'
         incrementPos :: SourcePos -> TokenNoPos -> SourcePos
         incrementPos pos (TNl) = updatePosChar pos '\n'
         incrementPos pos _tok = updatePosChar pos 'a'
 
 dummyFilename :: AbsFile
-dummyFilename = (asAbsFile "fictitiousTestFile.bas")
+dummyFilename = (Path.absFile "fictitiousTestFile.bas")
 
 moduleDoesParseTo :: [TokenNoPos] -> [Proc] -> Bool
 moduleDoesParseTo ts expected = case parse ts of

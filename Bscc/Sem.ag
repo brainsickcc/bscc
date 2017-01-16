@@ -43,7 +43,8 @@ import Data.Foldable (toList)
 import Data.Monoid ((<>), mempty)
 import qualified Data.Sequence as Seq
 import Prelude hiding (FilePath)
-import System.Path (getPathString, RelFile, takeBaseName)
+import System.Path (RelFile, takeBaseName)
+import qualified System.Path as Path
 }
 
 INCLUDE "Ast/Plain.ag"
@@ -98,7 +99,7 @@ ATTR Modules [ | | typedAst USE {:} {[]}: SModules ]
 ATTR Module  [ | | typedAst: SModule ]
 SEM Module
   | BasModule  lhs.typedAst = SBasModule @path @procs.typedAst @loc.name
-               loc.name' = getPathString $ takeBaseName @path
+               loc.name' = Path.toString $ takeBaseName @path
                loc.name = mkSymbolName (if null @loc.name'
                                         then "Module1"
                                         else @loc.name')

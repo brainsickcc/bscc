@@ -20,7 +20,8 @@ import qualified Bscc.Triplet as Triplet
 
 import Control.Monad (void)
 import Prelude hiding (FilePath)
-import System.Path (AbsFile, getPathString)
+import System.Path (AbsFile)
+import qualified System.Path as Path
 import System.Process (readProcess)
 
 -- | The returned computation links object files to produce an
@@ -38,8 +39,8 @@ link target objFiles outputName = do
   -- to see what pain we're leaving for others to deal with.
   let cmd = Triplet.str target ++ "-gcc"
        -- Link errors unless objFiles come before -lbsa.
-      args = map getPathString objFiles
-             ++ ["-o", getPathString outputName,
+      args = map Path.toString objFiles
+             ++ ["-o", Path.toString outputName,
                  -- Find and link against libbsa.
                  "-L", "/usr/local/" ++ Triplet.str target ++
                        "/sys-root/mingw/lib/",

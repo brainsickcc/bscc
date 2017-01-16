@@ -34,7 +34,8 @@ import LLVM.General.Context (withContext)
 import qualified LLVM.General.Target as T
 import qualified LLVM.General.Relocation as Relocation
 import Prelude hiding (FilePath, readFile)
-import System.Path (AbsFile, getPathString)
+import System.Path (AbsFile)
+import qualified System.Path as Path
 import System.Path.IO (readFile)
 
 -- | Bracket the creation of a C++ LLVM Module.  Build the C++ LLVM
@@ -77,7 +78,7 @@ codegen llCxxModule triple outPath = do
                         \machine -> do
                           bs <- fromRightErrorTIo
                                   (M.moduleObject machine llCxxModule)
-                          B.writeFile (getPathString outPath) bs
+                          B.writeFile (Path.toString outPath) bs
 
 fromRightErrorTIo :: Show a => ErrorT a IO b -> IO b
 fromRightErrorTIo = runErrorT >=> either (throwIO . userError . show) return

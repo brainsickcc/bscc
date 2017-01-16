@@ -20,7 +20,7 @@ import Bscc.Ast.Plain
 import Bscc.Ast.WithSem
 import Bscc.Symbol.Name
 
-import System.Path (asRelFile, RelFile)
+import System.Path (relFile, RelFile)
 import qualified Test.Tasty as T
 import qualified Test.Tasty.HUnit as HU
 
@@ -70,8 +70,8 @@ module1 = mkSymbolName "Module1"
 module2 = mkSymbolName "Module2"
 
 module1Path, module2Path :: RelFile
-module1Path = (asRelFile "Module1.bas")
-module2Path = (asRelFile "Module2.bas")
+module1Path = (relFile "Module1.bas")
+module2Path = (relFile "Module2.bas")
 
 project1 :: SymbolName
 project1 = mkSymbolName "Project1"

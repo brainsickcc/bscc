@@ -23,7 +23,8 @@ import Control.Applicative ((<*), (<*>), (*>), (<$>), pure)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Prelude hiding (FilePath)
-import System.Path (AbsFile, getPathString)
+import System.Path (AbsFile)
+import qualified System.Path as Path
 import Text.Parsec.Char (char, oneOf, satisfy)
 import Text.Parsec.Combinator (eof, many1)
 import Text.Parsec.Error (ParseError)
@@ -35,7 +36,7 @@ import Text.Parsec.String (Parser)
 lexFileContents :: String       -- ^ File contents
                    -> AbsFile
                    -> Either ParseError [Token]
-lexFileContents contents path = parse scan (getPathString path) contents
+lexFileContents contents path = parse scan (Path.toString path) contents
 
 -- | This `Parser' is the /lexer/ or /scanner/.  It tokenizes the input.
 scan :: Parser [Token]

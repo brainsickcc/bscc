@@ -45,9 +45,10 @@ import System.Environment (getArgs, getProgName)
 import System.Exit (exitFailure)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Path (AbsFile,
-                    asRelFile, getPathString, mkAbsPathFromCwd,
+                    relFile,
                     RelFile, replaceExtension, takeExtension,
                     (</>))
+import qualified System.Path as Path
 import System.Path.IO (readFile)
 
 import Text.Groom (groom)
@@ -103,7 +104,7 @@ doNormalMode :: BsccOptions -- ^ Parsed command line options.
                 -> IO ()    -- ^ The returned computation performs
                             --   compilation.
 doNormalMode options userFiles = do
-  files <- mapM mkAbsPathFromCwd userFiles
+  files <- mapM (Path.dynamicMakeAbsoluteFromCwd . Path.absRel) userFiles
   when (null files) $ fatalError "no input files"
   when (any ((/= ".bas") . takeExtension) files) $
     fatalError "files must be .bas files"
@@ -115,14 +116,14 @@ doNormalMode options userFiles = do
     contents <- readFile path
     tokens <- case lexFileContents contents path of
       Left parseError -> do
-        errLn ("Encountered errors whilst lexing " ++ getPathString path ++
+        errLn ("Encountered errors whilst lexing " ++ Path.toString path ++
                ":")
         errLn $ show parseError
         exitFailure
       Right tokens -> return tokens
     case parseFileContents tokens path of
       Left parseError -> do
-        errLn ("Encountered errors whilst parsing " ++ getPathString path ++
+        errLn ("Encountered errors whilst parsing " ++ Path.toString path ++
                ":")
         errLn $ show parseError
         exitFailure
@@ -149,17 +150,17 @@ doNormalMode options userFiles = do
   when (options^.verbose & getLast & fromJust) $ do
     putStrLn "\nLLVM IR:"
     forM_ irAstAndPaths $ \(irAst, path) -> do
-      putStrLn $ getPathString path ++ ":"
+      putStrLn $ Path.toString path ++ ":"
       content <- Mach.withModuleFromAst irAst M.moduleLLVMAssembly
       putStr content
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
   void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
-    tmpDir <- mkAbsPathFromCwd tmpDirString
+    tmpDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel tmpDirString
     -- libbsccts provides required startup code.
-    libbscctsIrPath <- getDataFileName $ asRelFile "libbsccts/startup.ll"
-    let libbscctsObjPath = tmpDir </> asRelFile "libbsccts-startup.ll"
+    libbscctsIrPath <- getDataFileName $ relFile "libbsccts/startup.ll"
+    let libbscctsObjPath = tmpDir </> relFile "libbsccts-startup.ll"
     Mach.withModuleFromLlAsmFile libbscctsIrPath $ \mod' -> do
       Mach.codegen mod' targetMachine libbscctsObjPath
 
@@ -173,7 +174,8 @@ doNormalMode options userFiles = do
     let objPaths :: [AbsFile]
         objPaths = libbscctsObjPath : mainObjPaths
     -- Link the object files into the executable.
-    outputPath <- mkAbsPathFromCwd $ options^.outputName & getLast & fromJust
+    outputPath <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel $
+      options^.outputName & getLast & fromJust
     link targetMachine objPaths outputPath
 
 fatalError :: String -> IO ()

@@ -28,8 +28,8 @@ import qualified LLVM.General.AST.Type as AT
 import qualified LLVM.General.AST.Visibility as V
 import Prelude hiding (writeFile)
 import System.IO.Temp (withSystemTempDirectory)
-import System.Path (asRelFile, getPathString, mkAbsPathFromCwd,
-                    (</>))
+import System.Path (relFile, (</>))
+import qualified System.Path as Path
 import System.Process (readProcess)
 import qualified Test.Tasty as T
 import qualified Test.Tasty.HUnit as HU
@@ -53,10 +53,10 @@ simpleModule = defaultModule { moduleDefinitions = [GlobalDefinition f] }
 test_codegen = do
   withModuleFromAst simpleModule $ \m -> do
     withSystemTempDirectory "bsccTest." $ \tmpDirString -> do
-      tmpDir <- mkAbsPathFromCwd tmpDirString
-      let objPath = tmpDir </> asRelFile "codegen.o"
+      tmpDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel tmpDirString
+      let objPath = tmpDir </> relFile "codegen.o"
       codegen m I686W64Mingw32 objPath
-      fileCmdOutput <- readProcess "file" [getPathString objPath] ""
+      fileCmdOutput <- readProcess "file" [Path.toString objPath] ""
       HU.assertBool ("Output from file: " ++ fileCmdOutput)
                     ("80386 COFF executable" `isInfixOf` fileCmdOutput)
 

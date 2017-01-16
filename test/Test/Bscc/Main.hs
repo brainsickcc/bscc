@@ -22,8 +22,8 @@ import Data.List (isInfixOf)
 import Prelude hiding (writeFile)
 import System.Environment (withArgs)
 import System.IO.Temp (withSystemTempDirectory)
-import System.Path (asRelFile, getPathString, mkAbsPathFromCwd,
-                    (</>))
+import System.Path (relFile, (</>))
+import qualified System.Path as Path
 import System.Path.IO (writeFile)
 import System.Process (readProcess)
 import qualified Test.Tasty as T
@@ -37,18 +37,18 @@ mainTests =
 
 test_helloCompilesToExe = do
   void $ withSystemTempDirectory "bsccTest." $ \tmpDirString -> do
-    tmpDir <- mkAbsPathFromCwd tmpDirString
-    let helloBasPath = tmpDir </> asRelFile "hello.bas"
+    tmpDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel tmpDirString
+    let helloBasPath = tmpDir </> relFile "hello.bas"
     writeFile helloBasPath "Sub Main()\n\
 \\n\
 \    Call MsgBox(\"Hello, world!\")\n\
 \\n\
 \End Sub\n\
 \"
-    let helloExePath = tmpDir </> asRelFile "hello.exe"
-    withArgs [getPathString helloBasPath,
-              "-o", getPathString helloExePath] main
-    fileCmdOutput <- readProcess "file" [getPathString helloExePath] ""
+    let helloExePath = tmpDir </> relFile "hello.exe"
+    withArgs [Path.toString helloBasPath,
+              "-o", Path.toString helloExePath] main
+    fileCmdOutput <- readProcess "file" [Path.toString helloExePath] ""
     HU.assertBool ("Output from file: " ++ fileCmdOutput)
       ("PE32 executable (GUI) Intel 80386, for MS Windows"
        `isInfixOf` fileCmdOutput)

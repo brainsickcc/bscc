@@ -24,7 +24,7 @@ import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad ((>=>))
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
-import System.Path (asRelFile, RelFile)
+import System.Path (relFile, RelFile)
 import qualified Test.Tasty as T
 import qualified Test.Tasty.HUnit as HU
 
@@ -69,8 +69,8 @@ module1 = mkSymbolName "Module1"
 module2 = mkSymbolName "Module2"
 
 module1Path, module2Path :: RelFile
-module1Path = (asRelFile "Module1.bas")
-module2Path = (asRelFile "Module2.bas")
+module1Path = (relFile "Module1.bas")
+module2Path = (relFile "Module2.bas")
 
 project1 :: SymbolName
 project1 = mkSymbolName "Project1"
@@ -79,8 +79,8 @@ target :: SymbolName
 target = mkSymbolName "target"
 
 test_callingProcedureDefinedInAnotherModule =
-  ast `assertCodegensTo` [(asm1, asRelFile "Module1.ll"),
-                          (asm2, asRelFile "Module2.ll")]
+  ast `assertCodegensTo` [(asm1, relFile "Module1.ll"),
+                          (asm2, relFile "Module2.ll")]
   where ast = SProject [SBasModule module1Path [subMain] module1,
                         SBasModule module2Path [subTarget] module2]
                        project1
@@ -100,7 +100,7 @@ test_callingProcedureDefinedInAnotherModule =
                 "}\n")
 
 test_callingProcedureDefinedInSameModule =
-  ast `assertCodegensTo` [(asm, asRelFile "Module1.ll")]
+  ast `assertCodegensTo` [(asm, relFile "Module1.ll")]
   where ast = SProject [SBasModule module1Path [subMain, subTarget] module1]
                        project1
         subMain = SProc (SProcPrototype main [] Nothing project1 module1)
@@ -117,7 +117,7 @@ test_callingProcedureDefinedInSameModule =
                "}\n")
 
 test_callingProcedureWithStringParam =
-  ast `assertCodegensTo` [(asm, asRelFile "Module1.ll")]
+  ast `assertCodegensTo` [(asm, relFile "Module1.ll")]
   where
     ast = SProject [SBasModule module1Path [subMain, subTarget] module1]
                    project1

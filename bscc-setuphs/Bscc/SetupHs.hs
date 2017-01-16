@@ -39,8 +39,8 @@ import Distribution.Simple.UUAGC (uuagcLibUserHook)
 import Distribution.Simple.UserHooks (Args)
 import Distribution.Simple.Utils (info, installOrdinaryFile)
 import Prelude hiding (FilePath, writeFile)
-import System.Path (AbsDir, asRelDir, asRelFile, mkAbsPathFromCwd,
-                    getPathString, (</>))
+import System.Path (relDir, relFile, (</>))
+import qualified System.Path as Path
 import System.Path.Directory (createDirectoryIfMissing)
 import System.Path.IO (writeFile)
 import UU.UUAGC (uuagc)
@@ -131,26 +131,21 @@ appendPostSDist = flip postSDist_a
 appendHookedPrograms :: UserHooks -> [Program] -> UserHooks
 appendHookedPrograms hooks progs = hookedPrograms_u (++ progs) hooks
 
--- | Converts the input, assumed to be a directory, into an absolute
--- directory.  If the input is relative, the current working directory
--- is used in the process.
-mkAbsDirFromCwd :: String -> IO AbsDir
-mkAbsDirFromCwd = mkAbsPathFromCwd
-
 -- | Create a man page using help2man.
 manBuildHook :: BuildHook
 manBuildHook _descr buildInfo _hooks flags = do
   let progsDb = withPrograms buildInfo
       verbosity = fromFlag $ buildVerbosity flags
-  absBuildDir <- mkAbsPathFromCwd $ buildDir buildInfo
-  let outFile = absBuildDir </> asRelFile "bscc.1"
+  absBuildDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel $
+    buildDir buildInfo
+  let outFile = absBuildDir </> relFile "bscc.1"
   (help2man', _) <- requireProgram verbosity help2man progsDb
   -- For reasons documented in the shim program, a shim Haskell program
   -- is interpreted, and help2man uses this to generate the real
   -- bscc's man page.
   (runhaskell', _) <- requireProgram verbosity runhaskell progsDb
   let runhaskellPath = locationPath $ programLocation runhaskell'
-  runProgram verbosity help2man' ["-o", getPathString outFile,
+  runProgram verbosity help2man' ["-o", Path.toString outFile,
                                   "--no-info",
                                   runhaskellPath ++ " " ++
                                   "./bscc-help2man-shim.hs"]
@@ -159,15 +154,16 @@ manBuildHook _descr buildInfo _hooks flags = do
 manInstallHook :: InstallHook
 manInstallHook descr buildInfo _hooks flags = do
   let verbosity = fromFlag $ installVerbosity flags
-  absBuildDir <- mkAbsDirFromCwd $ buildDir buildInfo
-  let builtMan = absBuildDir </> asRelFile "bscc.1"
+  absBuildDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel $
+    buildDir buildInfo
+  let builtMan = absBuildDir </> relFile "bscc.1"
       relManDir = mandir $ absoluteInstallDirs descr buildInfo NoCopyDest
-  absManDir <- mkAbsDirFromCwd relManDir
-  let destMan1Dir = absManDir </> asRelDir "man1"
-      destMan = destMan1Dir </> asRelFile "bscc.1"
+  absManDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel $ relManDir
+  let destMan1Dir = absManDir </> relDir "man1"
+      destMan = destMan1Dir </> relFile "bscc.1"
   createDirectoryIfMissing True destMan1Dir
-  installOrdinaryFile verbosity (getPathString builtMan)
-                                (getPathString destMan)
+  installOrdinaryFile verbosity (Path.toString builtMan)
+                                (Path.toString destMan)
 
 -- | Ensures a real change log from the version control system ends up
 -- in the distribution tarball.  Updates the to-be-tarballed directory
@@ -179,11 +175,11 @@ changeLogPostSDist _args flags _packageDescr buildInfo = do
   info verbosity "Replacing dummy ChangeLog with the version control log"
   (git', _) <- requireProgram verbosity git progsDb
   sDistDir <- case flagToMaybe $ sDistDirectory flags of
-        Just dir -> mkAbsPathFromCwd dir
+        Just dir -> Path.dynamicMakeAbsoluteFromCwd $ Path.absRel $ dir
         Nothing -> die "changeLogPostSDist: unknown sdist working directory"
   -- Make git format the log a bit like a GNU-style ChangeLog
   let gitLogParams = ["--date=short",
                       "--format=%ad  %an  <%ae>%n%n%w(80,8,8)%B"]
   changeLogContents <- getProgramOutput verbosity git' $
                        ["log"] ++ gitLogParams
-  writeFile (sDistDir </> asRelFile "ChangeLog") changeLogContents
+  writeFile (sDistDir </> relFile "ChangeLog") changeLogContents

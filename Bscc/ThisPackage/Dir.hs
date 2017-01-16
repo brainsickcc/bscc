@@ -27,7 +27,7 @@ import Control.Applicative ((<$>))
 import Prelude hiding (FilePath)
 import System.Path (AbsFile, RelFile)
 #ifdef BUILD
-import System.Path (asAbsFile, getPathString)
+import qualified System.Path as Path
 -- When our code is properly built, Cabal provides functions to
 -- determine the paths of our resources.  When running inside GHCI it
 -- does not.
@@ -48,7 +48,8 @@ getDataFileName :: RelFile -- ^ Path to the data file.  This should be
                             -- file.
                    -> IO AbsFile
 #ifdef BUILD
-getDataFileName f = asAbsFile <$> Paths_bscc.getDataFileName (getPathString f)
+getDataFileName f = Path.absFile <$>
+  Paths_bscc.getDataFileName (Path.toString f)
 #else
 getDataFileName = makeAbsoluteFromCwd
 #endif
