@@ -32,10 +32,6 @@ and install bscc:
 bscc has runtime dependencies, as do any executables outputted by bscc.
 Consult the README for instructions on installing these.
 
-Creating a source distribution tarball is possible.  After you have
-successfully run ``cabal configure'' above, run:
-  $ cabal sdist
-
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
