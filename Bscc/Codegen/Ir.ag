@@ -183,8 +183,11 @@ SEM SProcPrototype
       lhs.importDeclaration = @loc.proto
       -- Used when the implementation of our procedure is defined.
       lhs.definitionDeclaration = @loc.proto
-      lhs.asCallable = Right . O.ConstantOperand . C.GlobalReference $
+      lhs.asCallable = Right . O.ConstantOperand .
+                         (C.GlobalReference @loc.ty) $
                          procName @self
+      loc.ty = T.FunctionType @retType.ty @loc.argTys @loc.varArgs
+      loc.argTys = map (\(G.Parameter t _ _) -> t) (toList @argDefs.defn)
       loc.retType = @retType.self
       loc.linkage = L.External
       loc.varArgs = False
@@ -267,8 +270,10 @@ SEM SExpr
                 -- refer to it via a (typed) pointer.
                 lhs.operandEtc =
     {
-      (O.ConstantOperand $ C.GetElementPtr True (C.GlobalReference @register)
-                                           [C.Int 64 0, C.Int 64 0],
+      (O.ConstantOperand $ C.GetElementPtr
+                             True
+                             (C.GlobalReference @loc.contentsType @register)
+                             [C.Int 64 0, C.Int 64 0],
        [])
     }
 

@@ -23,9 +23,9 @@ import qualified Bscc.Triplet as Triplet
 
 import Control.Exception (throwIO)
 import Control.Monad ((>=>))
-import Control.Monad.Trans.Error (ErrorT, runErrorT)
+import Control.Monad.Trans.Except (ExceptT, runExceptT)
 import qualified Data.ByteString as B
-import qualified Data.Set as Set
+import qualified Data.Map as Map
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
 import qualified LLVM.General.CodeGenOpt as CodeGenOpt
@@ -42,7 +42,7 @@ import System.Path.IO (readFile)
 -- Module from a pure LLVM AST.
 withModuleFromAst :: A.Module -> (M.Module -> IO r) -> IO r
 withModuleFromAst ast action = withContext $ \context -> do
-  fromRightErrorTIo $ M.withModuleFromAST context ast action
+  fromRightExceptTIo $ M.withModuleFromAST context ast action
 
 -- | Bracket the creation of a C++ LLVM Module by reading a file written
 -- in LLVM assembly.
@@ -63,7 +63,7 @@ withModuleFromLlAsmString :: String
                           -> IO r
 withModuleFromLlAsmString llText action = do
   withContext $ \context -> do
-    fromRightErrorTIo $ M.withModuleFromLLVMAssembly context llText action
+    fromRightExceptTIo $ M.withModuleFromLLVMAssembly context llText action
 
 -- | Generate an object file from an LLVM C++ Module.  The object file
 -- is written to the given path.
@@ -72,21 +72,21 @@ codegen llCxxModule triple outPath = do
   target <- lookupTargetSafe triple
   T.withTargetOptions $ \targetOptions -> do
     T.withTargetMachine target (Triplet.str triple) (Triplet.cpu triple)
-                        Set.empty
+                        Map.empty
                         targetOptions Relocation.Default CodeModel.Default
                         CodeGenOpt.Default $
                         \machine -> do
-                          bs <- fromRightErrorTIo
+                          bs <- fromRightExceptTIo
                                   (M.moduleObject machine llCxxModule)
                           B.writeFile (Path.toString outPath) bs
 
-fromRightErrorTIo :: Show a => ErrorT a IO b -> IO b
-fromRightErrorTIo = runErrorT >=> either (throwIO . userError . show) return
+fromRightExceptTIo :: Show a => ExceptT a IO b -> IO b
+fromRightExceptTIo = runExceptT >=> either (throwIO . userError . show) return
 
 -- | This is safe in that it takes care of any required initialization.
 lookupTargetSafe :: Triplet.Triplet -> IO T.Target
 lookupTargetSafe triple = do
   T.initializeAllTargets
-  (target, _) <- fromRightErrorTIo $
+  (target, _) <- fromRightExceptTIo $
                  T.lookupTarget Nothing (Triplet.str triple)
   return target
