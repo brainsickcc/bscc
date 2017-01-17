@@ -187,9 +187,11 @@ SEM SProcPrototype
                          procName @self
       loc.retType = @retType.self
       loc.linkage = L.External
+      loc.varArgs = False
       loc.proto = G.Function @loc.linkage V.Default x86_stdcallcc []
                     @retType.ty (procName @self)
-                    (toList @argDefs.defn, False) [] Nothing 0 Nothing []
+                    (toList @argDefs.defn, @loc.varArgs)
+                    [] Nothing 0 Nothing []
 
 {
 procName :: SProcPrototype -> N.Name
