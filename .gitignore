@@ -16,7 +16,5 @@
 # Build system generated.
 .stack-work/
 
-# Outputted by bscc, or required by its output
+# Outputted by bscc.
 *.exe
-# Nor do we output dlls, but libbsa is a DLL
-libbsa*.dll
