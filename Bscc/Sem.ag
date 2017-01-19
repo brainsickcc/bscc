@@ -233,7 +233,7 @@ SEM Module
   | BasModule  procs.inModule = @loc.name
 
 
--- * Handling Sub Main, the entry point to the BASIC program.
+-- * Handling Sub Main, the entry point to the program.
 SEM Project
   | Project  loc.mainErrs = case Seq.length @modules.mainProcs of
                               0 -> Seq.singleton SubMainDoesNotExist

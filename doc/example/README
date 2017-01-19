@@ -2,8 +2,8 @@ Copyright © 2012, 2013 Iain Nicol
 See the end of the file for license conditions.
 
 
-The subfolders of this directory contain some example BASIC programs
-which can be compiled by bscc into executables.
+The subfolders of this directory contain some example programs which
+can be compiled by bscc into executables.
 
 First you must install bscc and its related dependencies.  If doing this
 from source, follow bscc's main README and INSTALL instructions.

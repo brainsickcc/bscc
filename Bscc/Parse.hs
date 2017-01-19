@@ -15,8 +15,8 @@
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
--- | Parse our dialect of the BASIC language.  The parsers here work on
--- tokenized ("Bscc.Lex") input.
+-- | Parse the VB language.  The parsers here work on tokenized
+-- ("Bscc.Lex") input.
 module Bscc.Parse (parseFileContents) where
 
 import Bscc.Ast.Plain

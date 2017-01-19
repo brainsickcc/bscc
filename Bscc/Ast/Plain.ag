@@ -94,8 +94,8 @@ DATA ArgDef
 
 {
 -- $Type
--- Represents a data type.  Remember, the type represented is a BASIC
--- type, not a Haskell type.
+-- Represents a data type.  Remember, the type represented is a VB type,
+-- not a Haskell type.
 }
 DATA Type
    -- Dummy type for testing; remove when have two real types

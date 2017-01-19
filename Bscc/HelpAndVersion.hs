@@ -31,7 +31,7 @@ import Bscc.ThisPackage.Info
 
 helpMessage :: String
 helpMessage = "Usage: bscc [OPTION]... FILE...\n\
-\Compile .bas FILE(s) written in the ``Brainsick'' BASIC dialect\n\
+\Compiler for the classic, pre‐.NET, VB language\n\
 \\n\
 \Options:\n\
 \  --help         Display a help message and exit\n\
