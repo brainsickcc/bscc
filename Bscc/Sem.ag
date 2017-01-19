@@ -188,17 +188,17 @@ SEM SArgDef
 ATTR Project        [ | | symbolTable: {SymbolTable} ]
 ATTR Modules Module Procs Proc [ inProject: SymbolName | | ]
 SEM Project
-  | Project   -- Add in symbols from the standard library (libbsa) to
+  | Project   -- Add in symbols from the standard library (libvbstd) to
               -- those exported from the source files of the project.
              loc.symbolTable = @modules.exportedSymbols
-                               `SymTable.union` libbsaProtos
+                               `SymTable.union` libvbstdProtos
              modules.symbolTable = @loc.symbolTable
              modules.inProject = @name
 
 {
--- | Symbols exported from the standard library (libbsa).
-libbsaProtos :: SymbolTable
-libbsaProtos = toSymbolTable $ map SymbolProc procs
+-- | Symbols exported from the standard library (libvbstd).
+libvbstdProtos :: SymbolTable
+libvbstdProtos = toSymbolTable $ map SymbolProc procs
   where procs = [SProcPrototype (mkSymbolName "MsgBox")
                                 [SArgDef (mkSymbolName "Prompt") SString]
                                 Nothing (mkSymbolName "VBA")

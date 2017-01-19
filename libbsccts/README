@@ -8,7 +8,7 @@ non-trivial enough not to be directly emitted inline.  This, I think,
 makes it at least partially analogous to GCC's libgcc, or LLVM's
 compiler-rt.  To clarify, let us consider some things libbsccts is not:
 it is not the underlying implementation of the bscc program.  Nor is it
-the required runtime library; that is libbsa.
+the required runtime library; that is libvbstd.
 
 
 This program is free software: you can redistribute it and/or modify

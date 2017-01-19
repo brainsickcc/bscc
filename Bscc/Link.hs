@@ -38,13 +38,13 @@ link target objFiles outputName = do
   -- successfully link objects for our target.  Pass gcc the "-v" flag
   -- to see what pain we're leaving for others to deal with.
   let cmd = Triplet.str target ++ "-gcc"
-       -- Link errors unless objFiles come before -lbsa.
+       -- Link errors unless objFiles come before -lvbstd.
       args = map Path.toString objFiles
              ++ ["-o", Path.toString outputName,
-                 -- Find and link against libbsa.
+                 -- Find and link against libvbstd.
                  "-L", "/usr/local/" ++ Triplet.str target ++
                        "/sys-root/mingw/lib/",
-                 "-lbsa",
+                 "-lvbstd",
                  -- Use the GUI subsystem, as opposed to the default of
                  -- console.
                  "-Wl,--subsystem,windows"]

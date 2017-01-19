@@ -22,8 +22,8 @@ or later.  Namely this is the program i686-w64-mingw32-gcc and its usual
 libraries.  This is hopefully available from your operating system
 package manager.
 
-The second runtime dependency of bscc is the library libbsa.  libbsa
-should be available whence you obtained bscc.  You must install libbsa
+The second runtime dependency of bscc is the library libvbstd.  libvbstd
+should be available whence you obtained bscc.  You must install libvbstd
 per its own INSTALL instructions, and not just build it.
 
 Finally, in terms of dependencies, you should install Wine from your
