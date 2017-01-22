@@ -59,14 +59,14 @@ link target objFiles outputName = do
                -- libraries:
                "-L" ++ libdir_gcc,
                "-lgcc",
-               "-lgcc_eh",
+               -- "-lgcc_eh", -- Unused
                "-L" ++ libdir,
                "-lmingw32",
-               "-lmoldname",
+               -- "-lmoldname", -- Unused
                "-lmingwex",
                "-lmsvcrt",
-               "-ladvapi32",
-               "-lshell32",
+               -- "-ladvapi32", -- Unused
+               -- "-lshell32", -- Unused
                "-luser32",
                "-lkernel32",
                libdir_gcc ++ "/crtend.o",
