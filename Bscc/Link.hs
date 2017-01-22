@@ -18,11 +18,21 @@ module Bscc.Link (link) where
 
 import qualified Bscc.Triplet as Triplet
 
+import Control.Lens.Operators ((&))
 import Control.Monad (void)
+import Data.Char (isSpace)
 import Prelude hiding (FilePath)
 import System.Path (AbsFile)
 import qualified System.Path as Path
 import System.Process (readProcess)
+
+-- | Determine the GCC version, e.g. "6.3.0".
+gcc_version :: Triplet.Triplet -> IO String
+gcc_version target = do
+  let cmd = Triplet.str target ++ "-gcc"
+  let stdin = []
+  str <- readProcess cmd ["-dumpversion"] stdin
+  return $ takeWhile (not . isSpace) str
 
 -- | The returned computation links object files to produce an
 -- executable.
@@ -32,22 +42,38 @@ link :: Triplet.Triplet  -- ^ Target machine triplet.
         -> IO AbsFile    -- ^ This computation performs the linking.
                          --   Its result is the path to the executable.
 link target objFiles outputName = do
-  -- We could use ld to do the linking, but instead we outsource the job
-  -- to (mingw) gcc.  GCC takes care of knowing which low level support
-  -- libraries or object code (might) be necessary to link against to
-  -- successfully link objects for our target.  Pass gcc the "-v" flag
-  -- to see what pain we're leaving for others to deal with.
-  let cmd = Triplet.str target ++ "-gcc"
-       -- Link errors unless objFiles come before -lvbstd.
-      args = map Path.toString objFiles
-             ++ ["-o", Path.toString outputName,
-                 -- Find and link against libvbstd.
-                 "-L", "/usr/local/" ++ Triplet.str target ++
-                       "/sys-root/mingw/lib/",
-                 "-lvbstd",
-                 -- Use the GUI subsystem, as opposed to the default of
-                 -- console.
-                 "-Wl,--subsystem,windows"]
+  gcc_version' <- gcc_version target
+  let cmd = Triplet.str target ++ "-ld"
+      libdir = "/usr/" ++ Triplet.str target ++ "/sys-root/mingw/lib"
+      libdir_gcc = "/usr/lib/gcc/" ++ Triplet.str target ++ "/" ++ gcc_version'
+      args = [["-o", Path.toString outputName,
+               libdir ++ "/crt2.o",
+               libdir_gcc ++ "/crtbegin.o"],
+              -- Link errors unless objFiles come before -l.
+              map Path.toString objFiles,
+              -- Find and link against libvbstd.
+              ["-L", "/usr/local/" ++ Triplet.str target ++
+                     "/sys-root/mingw/lib/",
+               "-lvbstd",
+               -- MinGW GCC by default links against all of these
+               -- libraries:
+               "-L" ++ libdir_gcc,
+               "-lgcc",
+               "-lgcc_eh",
+               "-L" ++ libdir,
+               "-lmingw32",
+               "-lmoldname",
+               "-lmingwex",
+               "-lmsvcrt",
+               "-ladvapi32",
+               "-lshell32",
+               "-luser32",
+               "-lkernel32",
+               libdir_gcc ++ "/crtend.o",
+               -- Use the GUI subsystem, as opposed to the default of
+               -- console.
+               "--subsystem=windows"]]
+             & concat
       stdin = []
   void $ readProcess cmd args stdin
   return outputName
