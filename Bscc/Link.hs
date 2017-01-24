@@ -16,6 +16,7 @@
 -- | Linker functionality.
 module Bscc.Link (link) where
 
+import qualified Bscc.ThisPackage.Dir as Dir
 import qualified Bscc.Triplet as Triplet
 
 import Control.Lens.Operators ((&))
@@ -43,6 +44,7 @@ link :: Triplet.Triplet  -- ^ Target machine triplet.
                          --   Its result is the path to the executable.
 link target objFiles outputName = do
   gcc_version' <- gcc_version target
+  prefix <- Dir.prefix
   let cmd = Triplet.str target ++ "-ld"
       libdir = "/usr/" ++ Triplet.str target ++ "/sys-root/mingw/lib"
       libdir_gcc = "/usr/lib/gcc/" ++ Triplet.str target ++ "/" ++ gcc_version'
@@ -52,7 +54,7 @@ link target objFiles outputName = do
               -- Link errors unless objFiles come before -l.
               map Path.toString objFiles,
               -- Find and link against libvbstd.
-              ["-L", "/usr/local/" ++ Triplet.str target ++
+              ["-L", prefix ++ "/" ++ Triplet.str target ++
                      "/sys-root/mingw/lib/",
                "-lvbstd",
                -- MinGW GCC by default links against all of these

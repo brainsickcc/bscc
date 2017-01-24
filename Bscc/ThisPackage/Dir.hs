@@ -19,28 +19,34 @@
 -- specific package.  It is a bit analogous to config.h in Autotools
 -- projects.  Additionally, it provides the means to determine the paths
 -- of our data resources.
-module Bscc.ThisPackage.Dir (getDataFileName) where
+module Bscc.ThisPackage.Dir (getDataFileName, prefix) where
 
-#ifdef BUILD
-import Control.Applicative ((<$>))
-#endif
 import Prelude hiding (FilePath)
+#ifdef BUILD
+import System.Environment (getExecutablePath)
+#endif
 import System.Path (AbsFile, RelFile)
 #ifdef BUILD
 import qualified System.Path as Path
--- When our code is properly built, Cabal provides functions to
--- determine the paths of our resources.  When running inside GHCI it
--- does not.
-import qualified Paths_bscc
 #else
 import System.Path (makeAbsoluteFromCwd)
 #endif
 
+prefix :: IO String
+prefix = do
+#ifdef BUILD
+  exe <- getExecutablePath
+  -- e.g. /usr/bin/foo -> /usr
+  let parent = Path.toString . Path.takeDirectory . Path.absFile
+  return (parent . parent $ exe)
+#else
+  return "/usr/local"
+#endif
+
 -- | The returned computation gives the path which should be used to
--- access data files from this package.  Use this in preference to the
--- `Paths_bscc.getDataFileName' function from the Cabal generated
--- "Paths_bscc" module; the function here can additionally be used in an
--- interpreter.
+-- access data files from this package.
+--
+-- the function here can be used in an interpreter.
 getDataFileName :: RelFile -- ^ Path to the data file.  This should be
                             -- relative to the top level directory of
                             -- this package.  The data file must be
@@ -48,8 +54,17 @@ getDataFileName :: RelFile -- ^ Path to the data file.  This should be
                             -- file.
                    -> IO AbsFile
 #ifdef BUILD
-getDataFileName f = Path.absFile <$>
-  Paths_bscc.getDataFileName (Path.toString f)
+-- We can't use the Cabal provided 'Paths_bscc.getDataFileName'.  When
+-- we build under stack, it will resolve to a subdirectory of the
+-- .stack-work build directory.  That doesn't work because we want a
+-- sensible directory for installation, not a build implementation
+-- detail.
+getDataFileName f = do
+  prefix' <- prefix
+  return $ Path.absFile $
+    prefix' ++ "/share/brainsick/" ++ (Path.toString f)
 #else
+-- Similarly we can't use the Cabal provided function here, because it
+-- won't exist when running inside a Haskell interpreter.
 getDataFileName = makeAbsoluteFromCwd
 #endif

@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+PREFIX = $$HOME/.local
+
 .PHONY: all
 all:
 	stack build
@@ -24,3 +26,5 @@ test:
 .PHONY: install
 install:
 	stack build --copy-bins
+	mkdir -p "${PREFIX}/share/brainsick"
+	cp --parents libbsccts/startup.ll "${PREFIX}/share/brainsick"
