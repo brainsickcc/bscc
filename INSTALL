@@ -16,9 +16,9 @@ meets the requirement in stack.yaml.
 
 Run the following commands in this directory to configure, build, test,
 and install bscc:
-  $ stack setup
-  $ stack test
-  $ stack install
+  $ ./bootstrap
+  $ make test
+  $ make && make install
 
 bscc has runtime dependencies, as do any executables outputted by bscc.
 Consult the README for instructions on installing these.
