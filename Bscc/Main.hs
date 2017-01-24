@@ -41,14 +41,14 @@ import Data.Monoid ((<>), Last (getLast, Last), mappend, mempty, Monoid)
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
 import Prelude hiding (mapM_, readFile)
-import System.Environment (getArgs, getProgName)
+import System.Environment (getArgs, getProgName, lookupEnv)
 import System.Exit (exitFailure)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Path (AbsFile,
                     relFile,
                     RelFile, replaceExtension, takeExtension,
                     (</>))
-import qualified System.Path as Path
+import qualified System.Path.Generic as Path
 import System.Path.IO (readFile)
 
 import Text.Groom (groom)
@@ -99,12 +99,27 @@ main = do
       Version -> putVersion
       Normal options pos -> doNormalMode (defaultOptions <> options) pos
 
+-- | Turns relative paths into absolute paths, and leaves absolute paths
+-- as-is.
+--
+-- If running as an AppImage this function will use the original current
+-- working directory.  That makes this suitable for resolving user
+-- specified paths, as opposed to paths for files which are part of this
+-- application's packaging.
+absolutizePath :: Path.System os =>
+                  Path.AbsRel os fd -> IO (Path.Abs os fd)
+absolutizePath path = do
+  owd <- lookupEnv "OWD"
+  case owd of
+    Just dir -> return $ Path.dynamicMakeAbsolute (Path.abs dir) path
+    Nothing -> Path.dynamicMakeAbsoluteFromCwd path
+
 doNormalMode :: BsccOptions -- ^ Parsed command line options.
                 -> PosArgs  -- ^ List of files to compile.
                 -> IO ()    -- ^ The returned computation performs
                             --   compilation.
 doNormalMode options userFiles = do
-  files <- mapM (Path.dynamicMakeAbsoluteFromCwd . Path.absRel) userFiles
+  files <- mapM (absolutizePath . Path.absRel) userFiles
   when (null files) $ fatalError "no input files"
   when (any ((/= ".bas") . takeExtension) files) $
     fatalError "files must be .bas files"
@@ -157,7 +172,7 @@ doNormalMode options userFiles = do
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
   void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
-    tmpDir <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel tmpDirString
+    tmpDir <- absolutizePath $ Path.absRel tmpDirString
     -- libbsccts provides required startup code.
     libbscctsIrPath <- getDataFileName $ relFile "libbsccts/startup.ll"
     let libbscctsObjPath = tmpDir </> relFile "libbsccts-startup.ll"
@@ -174,7 +189,7 @@ doNormalMode options userFiles = do
     let objPaths :: [AbsFile]
         objPaths = libbscctsObjPath : mainObjPaths
     -- Link the object files into the executable.
-    outputPath <- Path.dynamicMakeAbsoluteFromCwd $ Path.absRel $
+    outputPath <- absolutizePath $ Path.absRel $
       options^.outputName & getLast & fromJust
     link targetMachine objPaths outputPath
 
