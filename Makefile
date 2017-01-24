@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-PREFIX = $$HOME/.local
+PREFIX ?= $$HOME/.local
 
 .PHONY: all
 all:
@@ -25,6 +25,22 @@ test:
 
 .PHONY: install
 install:
-	stack build --copy-bins
+	@SRC="$$(find .stack-work/install -type f -executable \
+	                                          -wholename "*/bin/bscc" \
+	                                          -print0 \
+	                | xargs -0 stat --format="%Y %n" \
+	                | sort -nr \
+	                | cut -d' ' -f2- \
+	                | head -n1)" && \
+	    DEST="${PREFIX}/bin/bscc" && \
+	    if [ -n "$$SRC" ]; then \
+	        echo mkdir -p "${PREFIX}/bin"; \
+	        mkdir -p "${PREFIX}/bin"; \
+	        echo cp "$$SRC" "$$DEST"; \
+	        cp "$$SRC" "$$DEST"; \
+	    else \
+	        echo "Cannot find built bscc to install"; \
+	        false; \
+	    fi
 	mkdir -p "${PREFIX}/share/brainsick"
 	cp --parents libbsccts/startup.ll "${PREFIX}/share/brainsick"
