@@ -18,6 +18,9 @@
 -- Setup.hs itself; see <https://github.com/haskell/cabal/issues/948>.
 module Bscc.SetupHs (setupMain) where
 
+import qualified Data.ByteString as B
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as Encoding
 import Distribution.PackageDescription (PackageDescription)
 import Distribution.Simple (defaultMainWithHooks, hookedPrograms,
                             UserHooks (buildHook, instHook, postSDist))
@@ -38,11 +41,10 @@ import Distribution.Simple.Utils (die)
 import Distribution.Simple.UUAGC (uuagcLibUserHook)
 import Distribution.Simple.UserHooks (Args)
 import Distribution.Simple.Utils (info, installOrdinaryFile)
-import Prelude hiding (FilePath, writeFile)
+import Prelude hiding (FilePath)
 import System.Path (relDir, relFile, (</>))
 import qualified System.Path as Path
 import System.Path.Directory (createDirectoryIfMissing)
-import System.Path.IO (writeFile)
 import UU.UUAGC (uuagc)
 
 -- | Effectively the entry point.  Largely this utility's functionality
@@ -182,4 +184,6 @@ changeLogPostSDist _args flags _packageDescr buildInfo = do
                       "--format=%ad  %an  <%ae>%n%n%w(80,8,8)%B"]
   changeLogContents <- getProgramOutput verbosity git' $
                        ["log"] ++ gitLogParams
-  writeFile (sDistDir </> relFile "ChangeLog") changeLogContents
+  let changeLogContents' = (Encoding.encodeUtf8 . T.pack) changeLogContents
+  let path = sDistDir </> relFile "ChangeLog"
+  B.writeFile (Path.toString path) changeLogContents'
