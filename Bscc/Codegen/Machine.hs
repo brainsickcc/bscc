@@ -26,6 +26,8 @@ import Control.Monad ((>=>))
 import Control.Monad.Trans.Except (ExceptT, runExceptT)
 import qualified Data.ByteString as B
 import qualified Data.Map as Map
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as Encoding
 import qualified LLVM.General.AST as A
 import qualified LLVM.General.Module as M
 import qualified LLVM.General.CodeGenOpt as CodeGenOpt
@@ -33,10 +35,9 @@ import qualified LLVM.General.CodeModel as CodeModel
 import LLVM.General.Context (withContext)
 import qualified LLVM.General.Target as T
 import qualified LLVM.General.Relocation as Relocation
-import Prelude hiding (FilePath, readFile)
+import Prelude hiding (FilePath)
 import System.Path (AbsFile)
 import qualified System.Path as Path
-import System.Path.IO (readFile)
 
 -- | Bracket the creation of a C++ LLVM Module.  Build the C++ LLVM
 -- Module from a pure LLVM AST.
@@ -52,7 +53,8 @@ withModuleFromLlAsmFile :: AbsFile
                         -> (M.Module -> IO r)
                         -> IO r
 withModuleFromLlAsmFile llFile action = do
-  llText <- readFile llFile
+  llBytes <- B.readFile (Path.toString llFile)
+  let llText = (T.unpack . Encoding.decodeUtf8) llBytes
   withModuleFromLlAsmString llText action
 
 -- | Bracket the creation of a C++ LLVM Module from LLVM assembly.
