@@ -52,7 +52,7 @@ data-files:
 
 source-repository head
   type: git
-  location: https://git.iainnicol.com/brainsick/bscc.git
+  location: https://gitlab.com/brainsick/bscc
 
 executable bscc
   main-is: Main.hs
