@@ -3,25 +3,12 @@ Compilation and installation guide
 Copyright © 2012 Iain Nicol
 See the end of the file for license conditions.
 
-These instructions should work on modern Unix-like systems.
+Building Brainsick and its dependencies is simple via the Brainsick
+build repository.  Namely, perform:
 
-From your operating system package manager, install the program
-help2man.  Also install the LLVM development package; look for ``llvm''
-in bscc.cabal to determine the approach LLVM version.
+  git clone --recursive https://gitlab.com/brainsick/build.git brainsick
 
-Install Stack, available from <https://haskellstack.org>.  Ensure that
-the version of Stack reported by
-  $ stack --version
-meets the requirement in stack.yaml.
-
-Run the following commands in this directory to configure, build, test,
-and install bscc:
-  $ ./bootstrap
-  $ make test
-  $ make && make install
-
-bscc has runtime dependencies, as do any executables outputted by bscc.
-Consult the README for instructions on installing these.
+Then follow the INSTALL file in build repository.
 
 
 This program is free software: you can redistribute it and/or modify
