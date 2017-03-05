@@ -53,22 +53,24 @@ link target objFiles outputName = do
                libdir_gcc ++ "/crtbegin.o"],
               -- Link errors unless objFiles come before -l.
               map Path.toString objFiles,
-              -- Find and link against libvbstd.
+              -- Find and link against libvbstd, and its dependencies.
               ["-L", prefix ++ "/" ++ Triplet.str target ++
                      "/sys-root/mingw/lib/",
                "-lvbstd",
+               "-luserenv",
+               "-lws2_32",
                -- MinGW GCC by default links against all of these
                -- libraries:
                "-L" ++ libdir_gcc,
                "-lgcc",
-               -- "-lgcc_eh", -- Unused
+               "-lgcc_eh",
                "-L" ++ libdir,
                "-lmingw32",
                -- "-lmoldname", -- Unused
                "-lmingwex",
                "-lmsvcrt",
-               -- "-ladvapi32", -- Unused
-               -- "-lshell32", -- Unused
+               "-ladvapi32",
+               "-lshell32",
                "-luser32",
                "-lkernel32",
                libdir_gcc ++ "/crtend.o",
