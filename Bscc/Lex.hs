@@ -25,8 +25,8 @@ import Data.Maybe (catMaybes)
 import Prelude hiding (FilePath)
 import System.Path (AbsFile)
 import qualified System.Path as Path
-import Text.Parsec.Char (char, oneOf, satisfy)
-import Text.Parsec.Combinator (eof, many1)
+import Text.Parsec.Char (char, oneOf, satisfy, string)
+import Text.Parsec.Combinator (eof, many1, optional)
 import Text.Parsec.Error (ParseError)
 import Text.Parsec.Prim ((<|>), (<?>), getPosition, many, parse, try)
 import Text.Parsec.String (Parser)
@@ -67,22 +67,31 @@ readMbToken = do
 readMbTokenNoPos :: Parser (Maybe TokenNoPos)
 readMbTokenNoPos = spaces1 <|> nl
                    <|> identOrKw
+                   <|> (try doubleLit)
+                   <|> integerLit
                    <|> stringLit
                    <|> symbol
+                   <|> comment
 
--- | Recognise one or more space character.  Here space is limited to
--- the ASCII space character.  Returns @Nothing@ because such whitespace
--- is not significant to the parser ("Bscc.Parse").
+-- | Recognise one or more whitespace character.  Returns @Nothing@
+-- because such whitespace is not significant to the parser
+-- ("Bscc.Parse").
 spaces1 :: Parser (Maybe TokenNoPos)
-spaces1 = (many1 $ char ' ') *> pure Nothing
+spaces1 = (many1 $ oneOf " \t") *> pure Nothing
+
+comment :: Parser (Maybe TokenNoPos)
+comment = do
+  x <- char '\'' *> many (satisfy (not . isNl)) <?> "comment"
+  return $ Just (TComment x)
 
 -- | Recognise a newline, returning such a token.
 nl :: Parser (Maybe TokenNoPos)
-nl = satisfy isNl *> pure (Just TNl) <?> "newline"
+nl = (string "\r\n" <|> string "\r" <|> string "\n") *>
+     pure (Just TNl) <?> "newline"
 
 -- | True if a character is a newline character.
 isNl :: Char -> Bool
-isNl = (== '\n')
+isNl x = (x == '\n') || (x == '\r')
 
 -- | Recognise an identifier or a keyword, returning a keyword or
 -- identifier token as appropriate.
@@ -110,9 +119,55 @@ identOrKwUnsureWhich = (:) <$> initialIdent <*> many nonInitialIdent
 -- | Map of each keyword to its corresponding token.
 kwMap :: Map.Map SymbolName TokenNoPos
 kwMap = Map.fromList (map (\(a, b) -> (mkSymbolName a, b))
-                      [("Call", TKwCall),
+                      [("And", TKwAnd),
+                       ("As", TKwAs),
+                       ("Attribute", TKwAttribute),
+                       ("Boolean", TKwBoolean),
+                       ("Call", TKwCall),
+                       ("Case", TKwCase),
+                       ("Dim", TKwDim),
+                       ("Double", TKwDouble),
+                       ("Else", TKwElse),
+                       ("ElseIf", TKwElseIf),
                        ("End", TKwEnd),
-                       ("Sub", TKwSub)])
+                       ("Explicit", TKwExplicit),
+                       ("False", TKwFalse),
+                       ("If", TKwIf),
+                       ("Integer", TKwInteger),
+                       ("Option", TKwOption),
+                       ("Private", TKwPrivate),
+                       ("Public", TKwPublic),
+                       ("Select", TKwSelect),
+                       ("String", TKwString),
+                       ("Sub", TKwSub),
+                       ("Then", TKwThen),
+                       ("True", TKwTrue)])
+-- comments, intLit,  Public, Private, If Then Else ElseIf Select Case
+-- let assignment, expression evaluationn
+-- dotted expressions
+
+doubleLit :: Parser (Maybe TokenNoPos)
+doubleLit = do
+  int <- many1 (oneOf "0123456789")
+  _ <- char '.'
+  frac <- many1 (oneOf "0123456789")
+  let x = read (int ++ "." ++ frac) :: Double
+  return $ Just (TDoubleLit x)
+
+-- TODO integer versus long, including & suffix etc.
+integerLit :: Parser (Maybe TokenNoPos)
+integerLit =
+  dec <|> try hex
+  where
+    dec = do
+      i <- try (optional (char '-') *>  many1 (oneOf "0123456789"))
+      return $ Just (TIntegerLit (read i))
+    hex = do
+      _ <- char '&'
+      _ <- char 'H'
+      i <- many1 (oneOf "0123456789ABCDEF")
+      _ <- char '&'
+      return $ Just (TIntegerLit (read ("0x" ++ i)))
 
 -- | Recognise a string literal, returning such a token.
 stringLit :: Parser (Maybe TokenNoPos)
@@ -125,4 +180,4 @@ stringLit = Just . TStringLit <$> (char '"' *> many strBodyChar <* char '"')
 -- other scanners, such as quotation marks which are recognised by the
 -- string literal scanner.  Returns the symbol in a token.
 symbol :: Parser (Maybe TokenNoPos)
-symbol = Just <$> TSym <$> oneOf "(),"
+symbol = Just <$> TSym <$> oneOf "(),=<>*/&+-.:"

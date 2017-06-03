@@ -1,3 +1,4 @@
+
 -- Copyright © 2012 Iain Nicol
 
 -- This program is free software: you can redistribute it and/or modify
@@ -121,8 +122,6 @@ doNormalMode :: BsccOptions -- ^ Parsed command line options.
 doNormalMode options userFiles = do
   files <- mapM (absolutizePath . Path.absRel) userFiles
   when (null files) $ fatalError "no input files"
-  when (any ((/= ".bas") . takeExtension) files) $
-    fatalError "files must be .bas files"
   let targetMachine = defaultTarget
 
   -- Lex and parse each of the files, and combine the result into one
@@ -144,9 +143,9 @@ doNormalMode options userFiles = do
         exitFailure
       Right ast -> return ast
   let ast = Project perFileAsts $ mkSymbolName "Project1"
-  when (options^.verbose & getLast & fromJust) $ do
-    putStrLn "AST:"
-    putStrLn . groom $ ast
+  -- when (options^.verbose & getLast & fromJust) $ do
+  --   putStrLn "AST:"
+  --   putStrLn . groom $ ast
 
   -- Perform semantic analysis.
   typedAst <- case semAnalysis ast of
@@ -155,9 +154,9 @@ doNormalMode options userFiles = do
       mapM_ print errs
       exitFailure
     Right typedAst -> return typedAst
-  when (options^.verbose & getLast & fromJust) $ do
-    putStrLn "\nSemantic analysis result:"
-    putStrLn $ groom typedAst
+  -- when (options^.verbose & getLast & fromJust) $ do
+  --   putStrLn "\nSemantic analysis result:"
+  --   putStrLn $ groom typedAst
 
   -- Generate the Intermediate Representation (IR), namely LLVM IR.
   let irAstAndPaths :: [(A.Module, RelFile)]
@@ -171,13 +170,20 @@ doNormalMode options userFiles = do
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
-  void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
+  --void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
+  void $ do
+    let tmpDirString = "/home/iain/programming/brainsickref/compilation-tmp"
     tmpDir <- absolutizePath $ Path.absRel tmpDirString
     -- libbsccts provides required startup code.
     libbscctsIrPath <- getDataFileName $ relFile "libbsccts/startup.ll"
     let libbscctsObjPath = tmpDir </> relFile "libbsccts-startup.ll"
     Mach.withModuleFromLlAsmFile libbscctsIrPath $ \mod' -> do
       Mach.codegen mod' targetMachine libbscctsObjPath
+
+    --libbscctsIrPath2 <- getDataFileName $ relFile "libbsccts/form-user.ll"
+    --let libbscctsObjPath2 = tmpDir </> relFile "libbsccts-form-user.ll"
+    --Mach.withModuleFromLlAsmFile libbscctsIrPath2 $ \mod' -> do
+    --  Mach.codegen mod' targetMachine libbscctsObjPath2
 
     mainObjPaths <- forM irAstAndPaths $ \(ir, irPath) -> do
       let objPathRel = (irPath `replaceExtension` ".o")
@@ -188,6 +194,7 @@ doNormalMode options userFiles = do
 
     let objPaths :: [AbsFile]
         objPaths = libbscctsObjPath : mainObjPaths
+        --objPaths = libbscctsObjPath : libbscctsObjPath2 : mainObjPaths
     -- Link the object files into the executable.
     outputPath <- absolutizePath $ Path.absRel $
       options^.outputName & getLast & fromJust

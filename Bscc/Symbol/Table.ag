@@ -59,6 +59,7 @@ DERIVING *: Show
 }
 DATA Symbol
    | SymbolProc  proto: SProcPrototype
+   | SymbolVariable  name: SymbolName  ty: SType
 DERIVING Symbol: Eq
 
 -- Ability to extract a name from the various types of symbols.
@@ -66,7 +67,7 @@ ATTR Symbol [ | | name: SymbolName ]
 
 SEM Symbol
   | SymbolProc  lhs.name = name_SProcPrototype_SProcPrototype @proto
-
+  | SymbolVariable  lhs.name = @name
 
 {
 -- $SymbolTable

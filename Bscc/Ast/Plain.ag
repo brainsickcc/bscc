@@ -33,10 +33,14 @@ MODULE {Bscc.Ast.Plain}
 {
 
 Project (..),                  -- $Project
+Visibility (..),
 Modules, Module (..),          -- $Module
+ClassHeaderBlock (..), ClassHeaderBlockParts, ClassHeaderBlockPart (..), -- FIXME is this the right order relative to impl and also other import lines?
+TopLevels, TopLevel (..), Attribute (..), Dim (..), Option (..),
 Procs, Proc (..),              -- $Proc
 ArgDefs, ArgDef (..),          -- $ArgDef
-Type (..),                     -- $Type
+Type (..),  MaybeType,         -- $Type
+CallType (..),
 InProcStmts, InProcStmt (..),  -- $InProcStmt
 Exprs, Expr (..)               -- $Expr
 }
@@ -61,6 +65,10 @@ DERIVING *: Show
 DATA Project
    | Project  modules: Modules  name: SymbolName
 
+DATA Visibility
+   | Private
+   | Public
+
 TYPE Modules = [Module]
 
 {
@@ -70,7 +78,36 @@ TYPE Modules = [Module]
 -- `BasModule': a \".bas\" file module.
 }
 DATA Module
-   | BasModule  path: RelFile  procs: Procs
+   | BasModule  path: RelFile  topLevels: TopLevels
+   | Form  path: RelFile  header: ClassHeaderBlock topLevels: TopLevels
+-- FIXME singular or plural topLevel?  also in WithSem.ag
+
+DATA ClassHeaderBlock
+   | ClassHeaderBlock  classname: String  main: ClassHeaderBlockParts
+TYPE ClassHeaderBlockParts = [ClassHeaderBlockPart]
+DATA ClassHeaderBlockPart
+   | ClassHeaderChild  child: ClassHeaderBlock
+   | ClassHeaderProp  name: SymbolName   val: Expr
+   | ClassHeaderPropBlock
+
+TYPE TopLevels = [TopLevel]
+
+DATA TopLevel
+   | Attribute  attr: Attribute
+   | Dim  dim: Dim
+   | Option  option: Option
+   | Proc  proc: Proc
+
+DATA Attribute
+   | AttributeConstr
+
+TYPE MaybeType = MAYBE Type
+
+DATA Dim
+   | DimConstr  name: SymbolName  ty: MaybeType
+
+DATA Option
+   | OptionConstr
 
 TYPE Procs = [Proc]
 
@@ -81,7 +118,8 @@ TYPE Procs = [Proc]
 -- `Sub': A Sub has no return type.
 }
 DATA Proc
-   | Sub  name: SymbolName  argDefs: ArgDefs  body: InProcStmts
+   | Sub  vis: (Maybe Visibility)  name: SymbolName  argDefs: ArgDefs
+          body: InProcStmts
 
 TYPE ArgDefs = [ArgDef]
 
@@ -98,20 +136,30 @@ DATA ArgDef
 -- not a Haskell type.
 }
 DATA Type
-   -- Dummy type for testing; remove when have two real types
-   | DummySecondType
+   | Boolean
+   | Double
+   | Integer
    | String
+   | Variant
 
 TYPE InProcStmts = [InProcStmt]
+
+DATA CallType
+   | CallType fn: SymbolName  args: Exprs
 
 {
 -- $InProcStmt
 -- A statement inside a `Proc'.
 
 -- `Call': a Call statement
+-- `Let': a Let assignment
 }
 DATA InProcStmt
+   -- TODO: use Call type.  To share with Expr.
    | Call  fn: SymbolName  args: Exprs
+   | Case val: Expr
+   | If cond: Expr -- TODO/FIXME
+   | Let  var: SymbolName  expr: Expr
 
 TYPE Exprs = [Expr]
 
@@ -119,5 +167,12 @@ TYPE Exprs = [Expr]
 -- $Expr
 -- An expression.
 }
+-- FIXME: SExpr
 DATA Expr
+   | BooleanLit  val: Bool
+   | CallExpr  call: CallType
+   | DoubleLit  val: Double
+   | IdentExpr  name: SymbolName
+   | IntegerLit  val: Integer -- FIXME int16?
    | StringLit  val: String
+   | Add  x: Expr  y: Expr

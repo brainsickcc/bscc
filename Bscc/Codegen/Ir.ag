@@ -33,6 +33,7 @@ x86_stdcallcc
 }
 -- Imports
 {
+import Debug.Trace (trace)
 import Bscc.Ast.WithSem
 import Bscc.Symbol.Name
 
@@ -41,9 +42,11 @@ import Control.Lens.Operators ((&), (<&>))
 import Control.Monad ((>=>))
 import Control.Monad.Trans.Error (ErrorT, runErrorT)
 import qualified Data.ByteString as B
+import qualified Data.Char as Char
 import Data.Foldable (toList)
+import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
-import Data.Sequence ((<|))
+import Data.Sequence ((<|), (|>)) -- FIXME can I take this from monoid?
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
@@ -56,13 +59,15 @@ import qualified LLVM.General.AST.CallingConvention as CC
 import qualified LLVM.General.AST.Constant as C
 import qualified LLVM.General.AST.Global as G
 import qualified LLVM.General.AST.Instruction as I
+import LLVM.General.AST.Instruction (Named ((:=)))
 import qualified LLVM.General.AST.Linkage as L
 import qualified LLVM.General.AST.Name as N
 import qualified LLVM.General.AST.Operand as O
+import qualified LLVM.General.AST.Float as Float
 import qualified LLVM.General.AST.Type as T
 import qualified LLVM.General.AST.Visibility as V
 import Prelude hiding (FilePath)
-import System.Path (RelFile, takeBaseName, (<.>))
+import System.Path (RelFile, relFile, takeBaseName, (<.>))
 }
 
 INCLUDE "../Ast/WithSem.ag"
@@ -99,8 +104,15 @@ x86_stdcallcc :: CC.CallingConvention
 x86_stdcallcc = CC.Numbered 64
 }
 
+-- FIXME: do I put UNIQUEREF inside Sem, or do I put symbol table inside here?
+-- Similarly, FIXME: Sem on IdentExpr needs to refer to the correct variable
+-- if there are duplicates (at different scope levels) or similar names; OR
+-- Sem on SIdentExpr can do such.  OR IS THAT AN AND???.
 -- Support for UNIQUEREF (generating unique numbers, for labels, etc.).
-ATTR SModule SProcs SProc SInProcStmts SInProcStmt SExprs SExpr
+ATTR SModule
+     SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
+     STopLevels STopLevel
+     SProcs SProc SInProcStmts SInProcStmt SExprs SExpr
      [ | counter: Int | ]
 SEM SModules
   | Cons  hd.counter = 1
@@ -119,39 +131,475 @@ ATTR SProject     [ | | ir: {Seq.Seq (A.Module, RelFile)} ]
 SEM SProject
   | SProject  lhs.ir = @modules.ir
 
-ATTR SModules     [ | | ir USE {<|} {Seq.empty}:
+ATTR SModules     [ | | ir USE {<>} {Seq.empty}:
                           {Seq.Seq (A.Module, RelFile)} ]
 
-ATTR SModule      [ | | ir: {(A.Module, RelFile)} ]
+-- FIXME [] vs seq
+-- TODO where to move this
+-- FIXME should we get rid of toplevels with the semed ast?
+-- ie sbasmodule should directly have sdims and sprocs, not stoplevels?
+ATTR STopLevels   [ | | procs USE {<>} {[]}:
+                          {SProcs} ]
+ATTR STopLevel    [ | | procs: {SProcs} ]
+-- FIXME naming of these is ugly to avoid clash (what, the constructors?)
+SEM STopLevel
+   | SAttribute  lhs.procs = []
+   | SDim  lhs.procs = []
+   | SOption  lhs.procs = []
+   | SProc  lhs.procs = [@proc.self]
+
+-- TODO: can I merge with other SEM STopLevel?
+-- Then wouldn't need that inst nonsense inside SModule
+ATTR STopLevels   [ | | otherDecls USE {<>} {Seq.empty}:
+                          {Seq.Seq A.Definition} ]
+ATTR STopLevel SDim   [ | | otherDecls: {Seq.Seq A.Definition} ]
+SEM STopLevel
+   | SAttribute  lhs.otherDecls = Seq.empty
+   -- FIXME type, alignment
+   | SDim -- implicit copy.  or make explicit?
+   | SOption  lhs.otherDecls = Seq.empty
+   | SProc  lhs.otherDecls = Seq.empty
+
+SEM SDim
+  -- FIXME trace
+  | SDimConstr  loc.otherDecls2 = [G.GlobalVariable @loc.myname L.Internal V.Default False (AddrSpace 0) False False @ty.ty (@ty.defaultValish & Just) Nothing 8 & A.GlobalDefinition] & Seq.fromList
+                lhs.otherDecls = trace ("SDim.otherDecls: " ++ show @loc.otherDecls2) @loc.otherDecls2
+                -- loc.nameish : UNIQUEREF counter
+                -- loc.name = N.UnName (fromIntegral @loc.nameish)
+                loc.myname = raw @name & map Char.toLower & N.Name
+
+ATTR SClassHeaderBlock [ | | main: SClassHeaderBlockParts ]
+SEM SClassHeaderBlock
+  | SClassHeaderBlock  lhs.main = @main.self
+
+ATTR SClassHeaderBlockParts [ | | propName USE {:} {[]}: {[String]}
+                                  val USE {:} {[]}: {[SExpr]} ]
+ATTR SClassHeaderBlockPart [ | | propName: String
+                                 val: SExpr ]
+SEM SClassHeaderBlockPart
+  | SClassHeaderChild  lhs.propName = "CHILD"
+                       lhs.val = error "FIXME"
+  | SClassHeaderProp  lhs.propName = raw @name
+                      lhs.val = @val.self
+  | SClassHeaderPropBlock  lhs.propName = "PROPBLOCK"
+                           lhs.val = error "FIXME"
+
+ATTR SClassHeaderBlockParts [ | | children USE {++} {[]}: {[SClassHeaderBlock]} ]
+ATTR SClassHeaderBlockPart [ | | children: {[SClassHeaderBlock]} ]
+SEM SClassHeaderBlockPart
+  | SClassHeaderChild  lhs.children = [@child.self]
+  | SClassHeaderProp  lhs.children = []
+  | SClassHeaderPropBlock  lhs.children = []
+
+ATTR SModule      [ | | ir: {Seq.Seq (A.Module, RelFile)} ]
 SEM SModule
-  | SBasModule  lhs.ir = (A.defaultModule
-                          {
-                            A.moduleDefinitions =
-                              @loc.fileLevelDecls <> @procs.definition
-                              <&> A.GlobalDefinition
-                              & toList
-                          },
-                          takeBaseName @path <.> "ll")
-                loc.fileLevelDecls = @procs.fileLevelDecls <>
-                                     @loc.declsUsedNonLocalProcs
+  | SBasModule
+                inst.procs : SProcs
+                inst.procs = @topLevel.procs
+                procs.inProject = @lhs.inProject
+                procs.inModule = @name
+                lhs.ir = [(A.defaultModule
+                           {
+                             A.moduleDefinitions =
+                               @loc.fileLevelDecls <> @procs.definition
+                               & toList
+                           },
+                           takeBaseName @path <.> "ll")
+                         ]
+                         & Seq.fromList
+                loc.fileLevelDecls = (@procs.fileLevelDecls <&> A.GlobalDefinition) <>
+                                     @loc.declsUsedNonLocalProcs <> @topLevel.otherDecls
                 loc.declsUsedNonLocalProcs =
                 {
-                  Seq.fromList @usedNonLocalProcs.importDeclaration
+                  @usedNonLocalProcs.importDeclaration
+                  <&> A.GlobalDefinition
+                  & Seq.fromList
                 }
                 inst.usedNonLocalProcs : SProcPrototypes
                 inst.usedNonLocalProcs = Set.elems @procs.usedNonLocalProcs
                 usedNonLocalProcs.inProject = @lhs.inProject
                 usedNonLocalProcs.inModule = @name
+  | SForm       inst.procs : SProcs
+                inst.procs = @topLevel.procs
+                procs.inProject = @lhs.inProject
+                procs.inModule = @name
+                lhs.ir = [(A.defaultModule
+                           {
+                             A.moduleDefinitions =
+                               @loc.fileLevelDecls <> @procs.definition
+                               <> @loc.newForm
+                               -- <> @loc.traceit
+                               & toList
+                           },
+                           takeBaseName @path <.> "ll")
+                         -- FIXME indentation.
+                         -- FIXME form startup should be not be part of every form;
+                         -- only the startup form (if there is one)
+                         ,@loc.startup
+                         ]
+                         & Seq.fromList
+                loc.fileLevelDecls = (@procs.fileLevelDecls <&> A.GlobalDefinition) <>
+                                     @loc.declsUsedNonLocalProcs
+                                     <> @topLevel.otherDecls
+                                     <> (fmap A.GlobalDefinition @buttonsetcaption.fileLevelDecls)
+                loc.declsUsedNonLocalProcs =
+                {
+                  @usedNonLocalProcs.importDeclaration
+                  <&> A.GlobalDefinition
+                  & Seq.fromList
+                }
+                inst.usedNonLocalProcs : SProcPrototypes
+                inst.usedNonLocalProcs = Set.elems @procs.usedNonLocalProcs
+                usedNonLocalProcs.inProject = @lhs.inProject
+                usedNonLocalProcs.inModule = @name
+                -- loc.uniqueN : UNIQUEREF counter
+                loc.startup = mkStartup ()
+
+                -- loc.traceit = trace ("TRACING: " ++ show @loc.buttonanalysisret)
+                --                     (Seq.empty)
+
+                -- loc.propHeaderTrace = trace (show @loc.propHeader) ""
+                -- loc.propHeader = 
+
+                inst.firstchildcalc : SClassHeaderBlockParts
+                inst.firstchildcalc = @header.main
+
+                inst.firstchildblockscalc : SClassHeaderBlock
+                inst.firstchildblockscalc = head @firstchildcalc.children
+
+                inst.buttonanalysis : SClassHeaderBlockParts
+                inst.buttonanalysis = @firstchildblockscalc.main
+
+                loc.buttondeterminecaption =
+                  zip @buttonanalysis.propName @buttonanalysis.val
+                  & filter (\(name, val) -> (name == "Caption"))
+                  & head
+                  & snd
+                inst.buttonsetcaption : SExpr
+                inst.buttonsetcaption = @loc.buttondeterminecaption
+
+                loc.buttondeterminewidth =
+                  zip @buttonanalysis.propName @buttonanalysis.val
+                  & filter (\(name, val) -> (name == "Width"))
+                  & head
+                  & snd
+                inst.buttonsetwidth : SExpr
+                inst.buttonsetwidth = @loc.buttondeterminewidth
+
+                loc.buttondetermineheight =
+                  zip @buttonanalysis.propName @buttonanalysis.val
+                  & filter (\(name, val) -> (name == "Height"))
+                  & head
+                  & snd
+                inst.buttonsetheight : SExpr
+                inst.buttonsetheight = @loc.buttondetermineheight
+
+
+
+                -- loc.bar = @buttonanalysis.val
+                -- loc.addonebutton =
+                --   I.Do (I.Call False x86_stdcallcc []
+                --                (C.GlobalReference (T.FunctionType hwnd [iFormPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
+                --                [(O.LocalReference iFormPtr (N.UnName 11), [])]
+                --                [] [])
+                loc.buttonsBlock =
+                  G.BasicBlock (N.UnName 12)
+                    -- (map (const @loc.addonebutton) @header.main)
+                    (addonebuttonandsetcaptionetc (head @header.main) @buttonsetcaption.operandEtc @buttonsetwidth.operandEtc @buttonsetheight.operandEtc)
+                    (I.Do (I.Br (N.UnName 999) []))
+
+                loc.retBlock =
+                  G.BasicBlock (N.UnName 999)
+                    [
+                    ]
+                    (I.Do (I.Ret (O.LocalReference iFormPtr (N.UnName 11) & Just) []))
+
+                loc.newFormBlocks =
+                  [
+                    G.BasicBlock (N.UnName 0)
+                      [
+                      -- Form* f
+                      N.UnName 1 := I.Alloca formPtr Nothing 4 []
+                      -- TODO: compact numbering (no 2, which was printf)
+                      --  = (Form*)malloc(sizeof(Form))
+                      -- FIXME hardcoded size
+                      -- FIXME what if malloc fails
+                      , N.UnName 3 := I.Call False CC.C []
+                                        (C.GlobalReference (T.FunctionType i8Ptr [T.i32] False) (N.Name "malloc") & O.ConstantOperand & Right)
+                                        [(C.Int 32 8 & O.ConstantOperand, [])]
+                                        [] []
+                      , N.UnName 4 := I.BitCast (O.LocalReference i8Ptr (N.UnName 3)) formPtr []
+                      , I.Do (I.Store False (O.LocalReference formPtrPtr (N.UnName 1)) (O.LocalReference formPtr (N.UnName 4)) Nothing 4 [])
+                      -- f->
+                      , N.UnName 5 := I.Load False (O.LocalReference formPtrPtr (N.UnName 1)) Nothing 4 []
+                      --  IForm_iface
+                      , N.UnName 6 := I.GetElementPtr True (O.LocalReference formPtr (N.UnName 5)) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                      -- .lpVtbl
+                      , N.UnName 7 := I.GetElementPtr True (O.LocalReference iFormPtr (N.UnName 6)) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                      -- = &form_vbtl;
+                      , I.Do (I.Store False
+                                      (O.LocalReference iFormVtblPtrPtr (N.UnName 7))
+                                      (C.BitCast (C.GlobalReference iFormVtblRef (N.Name "form_vtbl")) iFormVtblPtr & O.ConstantOperand)
+                                      -- FIXME remove this dud attempt
+                                      -- (C.BitCast (C.GlobalReference (T.StructureType False [iFormLoad, iFormShow]) (N.Name "form_vtbl")) iFormVtblRef & O.ConstantOperand)
+                                      Nothing 4 [])
+                      -- -- f
+                      , N.UnName 8 := I.Load False (O.LocalReference formPtrPtr (N.UnName 1)) Nothing 4 []
+                      -- -- ->hwnd
+                      , N.UnName 9 := I.GetElementPtr True (O.LocalReference formPtr (N.UnName 8)) [C.Int 32 0 & O.ConstantOperand, C.Int 32 1 & O.ConstantOperand] []
+                      -- --  = NULL;
+                      , I.Do (I.Store False
+                                      (O.LocalReference hwndPtr (N.UnName 9))
+                                      (C.Null hwnd & O.ConstantOperand)
+                                      Nothing 4 [])
+                      -- f
+                      , N.UnName 10 := I.Load False (O.LocalReference formPtrPtr (N.UnName 1)) Nothing 4 []
+                      -- & ->iForm_iface
+                      , N.UnName 11 := I.GetElementPtr True (O.LocalReference formPtr (N.UnName 10)) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                      ]
+                      -- return              ;
+                      (I.Do (I.Br (N.UnName 12) []))
+                  , @loc.buttonsBlock
+                  , @loc.retBlock
+                  ]
+                loc.newForm =
+                  [ G.Function L.External V.Default x86_stdcallcc []
+                      iFormPtr (N.Name "new_form_codegened") ([], False)
+                      [] Nothing 0 Nothing
+                      @loc.newFormBlocks
+                    & A.GlobalDefinition
+                  , iForm, iFormVtbl, hwnd__, malloc
+                  , form -- FIXME: this and hwnd aren't showing up in gened ll
+                  , form_load_ref, form_show_ref
+                  , form_vtbl
+                  , addbtn, buttonsetcaption, buttonsetwidth, buttonsetheight
+                  ]
+                  & Seq.fromList
+
+{
+addonebuttonandsetcaptionetc btn captionop widthop heightop =
+  [ N.UnName 13 := I.Call False x86_stdcallcc []
+                          (C.GlobalReference (T.FunctionType hwnd [iFormPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
+                          [(O.LocalReference iFormPtr (N.UnName 11), [])]
+                          [] []
+  , N.UnName 14 := I.Call False x86_stdcallcc []
+                          (C.GlobalReference (T.FunctionType T.void [iFormPtr, ptr T.i16] False) (N.Name "ButtonSetCaption") & O.ConstantOperand & Right)
+                          [ (O.LocalReference iFormPtr (N.UnName 13), [])
+                          , captionop
+                          ]
+                          [] []
+  , N.UnName 15 := I.Call False x86_stdcallcc []
+                          (C.GlobalReference (T.FunctionType T.void [iFormPtr, T.i32] False) (N.Name "ButtonSetWidth") & O.ConstantOperand & Right)
+                          [ (O.LocalReference iFormPtr (N.UnName 13), [])
+                          , widthop
+                          ]
+                          [] []
+  , N.UnName 16 := I.Call False x86_stdcallcc []
+                          (C.GlobalReference (T.FunctionType T.void [iFormPtr, T.i32] False) (N.Name "ButtonSetHeight") & O.ConstantOperand & Right)
+                          [ (O.LocalReference iFormPtr (N.UnName 13), [])
+                          , heightop
+                          ]
+                          [] []
+  ]
+
+
+
+
+ptr = flip T.PointerType (AddrSpace 0)
+formPtr = T.NamedTypeReference (N.Name "struct.Form")
+          & ptr
+formPtrPtr = formPtr & ptr -- TODO: get rid of these precomposed variables.  just define a ptrPtr function.
+hwnd__ = [T.i32]
+          & T.StructureType False
+          & Just & A.TypeDefinition (N.Name "struct.HWNDNONP")
+hwnd = T.NamedTypeReference (N.Name "struct.HWNDNONP")
+       & ptr
+hwndPtr = hwnd & ptr
+form = [iFormRef, hwnd]
+       & T.StructureType False
+       & Just & A.TypeDefinition (N.Name "struct.Form")
+
+-- form_vtbl = C.Struct Nothing False [C.GlobalReference iFormLoad (N.Name "Form_Load"), C.GlobalReference iFormShow (N.Name "Form_Show")]
+-- -- TODO: can I just say form_vtbl has type iFormVtbl?                  HERE below i mean.   Then wouldn't have to bitcast elsewhere
+--             & A.GlobalAlias (N.Name "form_vtbl") L.Internal V.Default (T.StructureType False [iFormLoad, iFormShow])
+--             & A.GlobalDefinition
+
+-- FIXME: vtbl members
+-- FIXME why does this ICE??
+-- form_vtbl = C.Struct Nothing False []
+--             & A.GlobalAlias (N.Name "form_vtbl") L.Internal V.Default (T.StructureType False [])
+--             & A.GlobalDefinition
+
+form_vtbl =
+    A.GlobalDefinition 
+            ( A.GlobalVariable 
+                (N.Name "form_vtbl")
+                L.Internal
+                V.Default
+                False
+                (AddrSpace 0)
+                False
+                False
+                -- iFormVtblRef
+                (T.StructureType
+                        False
+                        [ iFormLoad, iFormShow ]
+                )
+                (Just
+                    -- Crashed when I assigned this to a GlobalAlias.  Hence we wrap in a GlobalVariable.
+                    ( C.Struct
+                        Nothing
+                        False
+                        [ C.GlobalReference iFormLoad (N.Name "Form_Load")
+                        , C.GlobalReference iFormShow (N.Name "Form_Show")
+                        ]
+                    )
+                )
+                Nothing
+                4
+            )
+
+malloc =
+  G.Function L.External V.Default CC.C []
+             i8Ptr (N.Name "malloc") ([G.Parameter T.i32 (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+form_load_ref =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.i32 (N.Name "Form_Load") ([G.Parameter iFormPtr (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+form_show_ref =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.i32 (N.Name "Form_Show") ([G.Parameter iFormPtr (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+addbtn =
+  G.Function L.External V.Default x86_stdcallcc []
+             hwnd (N.Name "AddButton") ([G.Parameter iFormPtr (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+buttonsetcaption =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.void (N.Name "ButtonSetCaption") ( [ G.Parameter hwnd (N.UnName 1) []
+                                                  , G.Parameter (ptr T.i16) (N.UnName 2) []
+                                                  ]
+                                                , False
+                                                )
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+buttonsetwidth =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.void (N.Name "ButtonSetWidth") ( [ G.Parameter hwnd (N.UnName 1) []
+                                                , G.Parameter T.i32 (N.UnName 2) []
+                                                ]
+                                              , False
+                                              )
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+buttonsetheight =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.void (N.Name "ButtonSetHeight") ( [ G.Parameter hwnd (N.UnName 1) []
+                                                 , G.Parameter T.i32 (N.UnName 2) []
+                                                 ]
+                                               , False
+                                               )
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+
+i8Ptr = ptr T.i8
+iForm = [ptr (T.NamedTypeReference (N.Name "struct.IFormVtbl"))]
+        & T.StructureType False
+        & Just & A.TypeDefinition (N.Name "struct.IForm")
+iFormRef = T.NamedTypeReference (N.Name "struct.IForm")
+iFormPtr = iFormRef & ptr
+iFormPtrPtr = iFormPtr & ptr
+iFormVtblRef = T.NamedTypeReference (N.Name "struct.IFormVtbl")
+iFormVtblPtr = iFormVtblRef & ptr
+iFormVtblPtrPtr = iFormVtblPtr & ptr
+iFormLoad = T.FunctionType T.i32 [iFormPtr] False & ptr
+iFormShow = T.FunctionType T.i32 [iFormPtr] False & ptr
+iFormVtbl = [ iFormLoad
+            , iFormShow
+            ]
+            & T.StructureType False
+            & Just & A.TypeDefinition (N.Name "struct.IFormVtbl")
+
+mkStartup :: () -> (A.Module, RelFile)
+mkStartup () =
+  let
+    varArgs = False
+    argDefs = []
+    retType = T.VoidType
+    -- TODO: replace 4 with typicalAlign?
+    blocks =
+      [
+        G.BasicBlock
+          (N.UnName 10)
+          -- IForm* form (stack allocate pointer)
+          [ N.UnName 1 := I.Alloca iFormPtr Nothing 4 []
+          -- = new_form();
+          , N.UnName 2 := I.Call False x86_stdcallcc []
+                            (C.GlobalReference (T.FunctionType iFormPtr [] False) (N.Name "new_form_codegened") & O.ConstantOperand & Right)
+                            []
+                            [] []
+          , I.Do (I.Store False (O.LocalReference iFormPtrPtr (N.UnName 1)) (O.LocalReference iFormPtr (N.UnName 2)) Nothing 4 [])
+          -- form->
+          , N.UnName 3 := I.Load False (O.LocalReference iFormPtrPtr (N.UnName 1)) Nothing 4 []
+          -- lpVtbl
+          , N.UnName 4 := I.GetElementPtr True (O.LocalReference iFormPtr (N.UnName 3)) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+          -- ->
+          , N.UnName 5 := I.Load False (O.LocalReference iFormVtblPtrPtr (N.UnName 4)) Nothing 4 []
+          -- Show (FIXME: don't hard code index 1)
+          , N.UnName 6 := I.GetElementPtr True (O.LocalReference iFormVtblPtr (N.UnName 5)) [C.Int 32 0 & O.ConstantOperand, C.Int 32 1 & O.ConstantOperand] []
+          , N.UnName 7 := I.Load False (O.LocalReference iFormShow (N.UnName 6)) Nothing 4 []
+          -- ready an IForm* to pass as param
+          , N.UnName 8 := I.Load False (O.LocalReference iFormPtrPtr (N.UnName 1)) Nothing 4 []
+          -- ( call )
+          , N.UnName 9 := I.Call False x86_stdcallcc []
+                            (O.LocalReference iFormShow (N.UnName 7) & Right)
+                            [(O.LocalReference iFormPtr (N.UnName 8), [])]
+                            [] []
+          ]
+          (I.Do (I.Ret Nothing []))
+      ]
+    newForm =
+      G.Function L.External V.Default x86_stdcallcc []
+        iFormPtr (N.Name "new_form_codegened") ([], False)
+        [] Nothing 0 Nothing
+        []
+      & A.GlobalDefinition
+    -- TODO: call I share code e.g. reuse SProcProtype's semantics?
+    startup =
+      G.Function L.External V.Default x86_stdcallcc []
+        retType (N.Name "proc_main") (argDefs, varArgs)
+        [] Nothing 0 Nothing
+        blocks
+      & A.GlobalDefinition
+    defns = [iForm, iFormVtbl, startup, newForm]
+    mod = A.defaultModule { A.moduleDefinitions = defns }
+    filename = relFile "form-startup.ll"
+  in
+    (mod, filename)
+}
+
 
 ATTR SProcs SProc SInProcStmts
      SInProcStmt SExprs [ | | fileLevelDecls USE {<>} {Seq.empty}:
                                 {Seq.Seq G.Global} ]
 
-ATTR SProcs       [ | | definition USE {<|} {Seq.empty}: {Seq.Seq G.Global} ]
+ATTR SProcs       [ | | definition USE {<|} {Seq.empty}: {Seq.Seq A.Definition} ]
 
-ATTR SProc        [ | | definition: {G.Global} ]
+ATTR SProc        [ | | definition: {A.Definition} ]
 SEM SProc
-  | SProc  lhs.definition =
+  | SProcConstr  lhs.definition =
     {
       @proto.definitionDeclaration
       {
@@ -163,12 +611,17 @@ SEM SProc
                                      [])
         ]
       }
+      & A.GlobalDefinition
     }
            inst.retType : SProcRetType
            inst.retType = @proto.retType
 
 ATTR SProcPrototypes [ | | importDeclaration USE {:} {[]}: {[G.Global]} ]
-ATTR SProcPrototypes SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
+ATTR SProc SInProcStmts SInProcStmt SExprs
+     SProcPrototypes SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
+     -- STopLevels STopLevel SAttribute SDim SOption SAttributes
+     -- SModule SModules
+     SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
      [ | | self: SELF ]
 
 ATTR SProcPrototype [ | | importDeclaration: {G.Global}
@@ -216,14 +669,27 @@ SEM SArgDef
   | SArgDef  lhs.defn = G.Parameter @ty.ty (N.UnName 0) []
 
 ATTR SType [ | | defaultVal: {O.Operand}
+                 defaultValish: {C.Constant}
                  ty: {T.Type} ]
 
 SEM SType
-  | SDummySecondType  loc.ty = error "Ir SType | SDummySecondType: ty"
-                      lhs.defaultVal =
-                        error "Ir SType | SDummySecondType: defaultVal"
+  | SBoolean  loc.ty = error "Ir SType | SBoolean: ty"
+              loc.defaultValish = error "Ir SType | SBoolean: defaultValish"
+              lhs.defaultVal = O.ConstantOperand @loc.defaultValish
+  | SDouble  loc.ty = T.FloatingPointType 64 T.IEEE
+             loc.defaultValish = C.Float (Float.Double 0.0)
+             lhs.defaultVal = O.ConstantOperand @loc.defaultValish
+  | SInteger  loc.ty = error "Ir SType | SInteger: ty"
+              loc.defaultValish = error "Ir SType | SInteger: defaultValish"
+              lhs.defaultVal = O.ConstantOperand @loc.defaultValish
   | SString  loc.ty = (T.PointerType (T.IntegerType 16) (AddrSpace 0))
-             lhs.defaultVal = O.ConstantOperand $ C.Null @loc.ty
+             loc.defaultValish = C.Null @loc.ty
+             lhs.defaultVal = O.ConstantOperand @loc.defaultValish
+  | SVariant  loc.ty = error "Ir SType | SVariant: ty"
+              loc.defaultValish = error "Ir SType | SVariant: defaultValish"
+              lhs.defaultVal = O.ConstantOperand @loc.defaultValish
+
+
 
 ATTR SProcRetType [ | | defaultVal: {Maybe O.Operand}
                         ty: {T.Type} ]
@@ -233,20 +699,68 @@ SEM SProcRetType
   | Nothing  lhs.ty = T.VoidType
              lhs.defaultVal = Nothing
 
-ATTR SInProcStmts [ | | instr USE {<|} {Seq.empty}:
+ATTR SInProcStmts [ | | instr USE {<>} {Seq.empty}:
                           {Seq.Seq (I.Named I.Instruction)} ]
 
-ATTR SInProcStmt  [ | | instr: {I.Named I.Instruction} ]
+ATTR SInProcStmt  [ | | instr: {Seq.Seq (I.Named I.Instruction)} ]
 SEM SInProcStmt
-  | SCall  lhs.instr = I.Do $ I.Call False x86_stdcallcc [] @proc.asCallable
-                                     (toList @args.operandEtc) [] []
+  | SCall  lhs.instr = I.Do (I.Call False x86_stdcallcc [] @proc.asCallable
+                                    (toList @args.operandEtc) [] [])
+                       & Seq.singleton
+  -- FIXME alignment
+  | SLet  lhs.instr =
+            @expr.loadInstrs
+            |> (I.Do (I.Store False @loc.dest @loc.src Nothing 8 []))
+          loc.name = raw @var & map Char.toLower & N.Name
+          -- FIXME: lookup @var in symbol table to get dest storage ref & type
+          -- FIXME: if the variable was dimmed locally as opposed to module level then will be
+          --  O.LocalReference instead of O.ConstantOperand)
+          loc.dest = C.GlobalReference (T.FloatingPointType 64 T.IEEE) @loc.name & O.ConstantOperand
+          loc.src = @expr.operand
 
 ATTR SExprs [ | | operandEtc USE {<|} {Seq.empty}:
                     {Seq.Seq (O.Operand, [ParameterAttribute])} ]
 
 ATTR SExpr [ | | fileLevelDecls: {Seq.Seq G.Global}
+                 -- FIXME: use this loadInstrs where required (everywhere operand or operandEtc is used)
+                 loadInstrs: {Seq.Seq (I.Named I.Instruction)}
+                 operand: {O.Operand}
                  operandEtc: {(O.Operand, [ParameterAttribute])} ]
 SEM SExpr
+  | SAdd
+      lhs.fileLevelDecls = @x.fileLevelDecls <> @y.fileLevelDecls
+      loc.uniqueN : UNIQUEREF counter
+      loc.name = N.UnName (fromIntegral @loc.uniqueN)
+      lhs.loadInstrs =
+        @x.loadInstrs <> @y.loadInstrs
+        -- FIXME FAdd is only for floating point
+        |> (@loc.name := I.FAdd (I.NoFastMathFlags) (@x.operand) (@y.operand) [])
+      loc.operand = O.LocalReference @ty.ty @loc.name
+      lhs.operandEtc = (@loc.operand, [])
+  | SIdentExpr
+    lhs.fileLevelDecls = Seq.empty
+    loc.uniqueN : UNIQUEREF counter
+    loc.namenum = N.UnName (fromIntegral @loc.uniqueN)
+    -- FIXME: if the variable was dimmed locally as opposed to module level then will be
+    --  O.LocalReference instead of O.ConstantOperand)
+    -- FIXME: alignment
+    loc.loadInstrs = @loc.namenum := I.Load False (C.GlobalReference @ty.ty @loc.myname & O.ConstantOperand) Nothing 8 [] & Seq.singleton
+    loc.operand = O.LocalReference @ty.ty @loc.namenum
+    -- this approach failed (need the load):
+    -- loc.operand2 = C.GlobalReference @ty.ty @loc.myname & O.ConstantOperand
+    -- loc.operand = O.ConstantOperand (C.Float (Float.Double 777.0))
+    loc.myname = raw @name & map Char.toLower & N.Name
+    lhs.operandEtc = (@loc.operand, [])
+  | SDoubleLit
+    lhs.fileLevelDecls = Seq.empty
+    loc.loadInstrs = Seq.empty
+    loc.operand = O.ConstantOperand (C.Float (Float.Double @val))
+    lhs.operandEtc = (@loc.operand, [])
+  | SIntegerLit
+    lhs.fileLevelDecls = Seq.empty
+    loc.loadInstrs = Seq.empty
+    loc.operand = O.ConstantOperand (C.Int 32 @val)
+    lhs.operandEtc = (@loc.operand, [])
   | SStringLit  -- Determine a unique register to store the string
                 -- contents into.
                 loc.uniqueN : UNIQUEREF counter
@@ -266,16 +780,17 @@ SEM SExpr
                 loc.contentsType =
                      T.ArrayType (fromIntegral $ length @loc.word16s)
                                  (T.IntegerType 16)
+                loc.loadInstrs = Seq.empty
                 -- Whenever any generated code needs the string, we
                 -- refer to it via a (typed) pointer.
-                lhs.operandEtc =
+                loc.operand =
     {
-      (O.ConstantOperand $ C.GetElementPtr
-                             True
-                             (C.GlobalReference @loc.contentsType @register)
-                             [C.Int 64 0, C.Int 64 0],
-       [])
+      O.ConstantOperand $ C.GetElementPtr
+                            True
+                            (C.GlobalReference @loc.contentsType @register)
+                            [C.Int 64 0, C.Int 64 0]
     }
+                lhs.operandEtc = (@loc.operand, [])
 
 -- Support functions for translating string literals
 {
@@ -319,14 +834,28 @@ word8sToWord16 a b = a' * 256 + b'
 -- for, and the module (or project) containing the implementation;
 -- cf. the `isModuleLocal' attribute.
 ATTR SModules SModule [ inProject: SymbolName | | ]
-ATTR SProcs SProc SProcPrototypes SProcPrototype SInProcStmts SInProcStmt
+-- FIXME long line
+ATTR STopLevels STopLevel
+     SProcs SProc
+     SProcPrototypes SProcPrototype SInProcStmts SInProcStmt
                       [ inProject: SymbolName
                         inModule: SymbolName  | | ]
 SEM SProject
   | SProject  modules.inProject = @name
 
 SEM SModule
-  | SBasModule  procs.inModule = @name
+  | SBasModule  topLevel.inModule = @name
+  | SForm  topLevel.inModule = @name
+
+-- SEM STopLevels
+--   | Cons  hd.inModule = @loc.inModule
+--   | Nil
+
+-- SEM STopLevel
+--   | SAttribute
+--   | SDim
+--   | SOption
+--   | SProc  proc.inModule = error "FIXME"
 
 -- Keep track of calls to procedures implemented in files other than the
 -- file containing the call; the prototypes of these functions need
@@ -351,6 +880,7 @@ SEM SInProcStmt
   | SCall  lhs.usedNonLocalProc = if @proc.isModuleLocal
                                   then Nothing
                                   else Just @proc.self
+  | SLet  lhs.usedNonLocalProc = Nothing
 
 -- This answers this question: Is the procedure which is being used
 -- (that is, being called) being used in the module (and project)

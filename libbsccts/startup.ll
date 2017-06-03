@@ -20,11 +20,15 @@ declare x86_stdcallcc void @proc_main()
 
 ; Note that clang shows us we maybe need different code for different
 ; targets:
-;   i686-w64-mingw32: nounwind
+;   i686-w64-mingw32: nounwindb
 ;   x86_64-w64-mingw32: nounwind uwtable
 define i32 @main() nounwind
 {
   ; TODO: any initialization should go here.
   call x86_stdcallcc void @proc_main()
+  ;; FIXME: what if no forms are loaded?
+  call x86_stdcallcc void @"\01_pump@0"()
   ret i32 0
 }
+
+declare x86_stdcallcc void @"\01_pump@0"() #1

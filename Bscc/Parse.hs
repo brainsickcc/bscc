@@ -27,9 +27,11 @@ import Control.Applicative ((<*), (<*>), (*>), (<$>), pure)
 import Prelude hiding (FilePath)
 import System.Path (AbsFile, makeRelative, rootDir)
 import qualified System.Path as Path
-import Text.Parsec.Combinator (endBy, eof, sepEndBy, sepBy)
+import Text.Parsec.Combinator (choice, endBy, eof, optionMaybe, sepEndBy, sepBy)
+import Text.Parsec.Expr -- TODO specific
 import Text.Parsec.Error (ParseError)
-import Text.Parsec.Prim ((<?>), parse, Parsec, skipMany, token)
+import Text.Parsec.Prim ((<|>), (<?>),
+                         many, parse, Parsec, skipMany, token, try)
 
 -- GenParser and Parser follow a naming convention used in Parsec
 -- itself.
@@ -44,8 +46,15 @@ parseFileContents :: [Token]      -- ^ Tokens, from lexing the file.
                      -> AbsFile
                      -> Either ParseError Module
 parseFileContents tokens path =
-  parse (basModule path) (Path.toString path) tokens
-
+  let tokens' = filter (\(_, tok) -> case tok of
+                           TComment _ -> False
+                           _ -> True)
+                       tokens
+  in
+  if Path.takeExtension path == ".frm" then
+    parse (form path) (Path.toString path) tokens'
+  else
+    parse (basModule path) (Path.toString path) tokens'
 
 -- * Simple parsers, or general purpose parser combinators
 
@@ -79,17 +88,79 @@ ident = tokenAccepter (\tok -> case tok of
 -- function directly and instead use the kwFoo parsers.
 kw :: String -> Parser ()
 kw s = tokenAccepter (\tok -> case tok of
+                         TKwAs | s == "As" -> Just ()
+                         TKwAnd | s == "And" -> Just ()
+                         TKwAttribute | s == "Attribute" -> Just ()
+                         TKwBoolean | s == "Boolean" -> Just ()
                          TKwCall | s == "Call" -> Just ()
+                         TKwCase | s == "Case" -> Just ()
+                         TKwDim | s == "Dim" -> Just ()
+                         TKwDouble | s == "Double" -> Just ()
+                         TKwElse | s == "Else" -> Just ()
+                         TKwElseIf | s == "ElseIf" -> Just ()
                          TKwEnd | s == "End" -> Just ()
+                         TKwExplicit | s == "Explicit" -> Just ()
+                         TKwFalse | s == "False" -> Just ()
+                         TKwIf | s == "If" -> Just ()
+                         TKwInteger | s == "Integer" -> Just ()
+                         TKwOption | s == "Option" -> Just ()
+                         TKwPrivate | s == "Private" -> Just ()
+                         TKwPublic | s == "Public" -> Just ()
+                         TKwSelect | s == "Select" -> Just ()
+                         TKwString | s == "String" -> Just ()
                          TKwSub | s == "Sub" -> Just ()
+                         TKwThen | s == "Then" -> Just ()
+                         TKwTrue | s == "True" -> Just ()
                          _ -> Nothing)
        <?> s
 
 -- | /kwFoo/ parsers parse the keyword /Foo/.
-kwCall, kwEnd, kwSub :: Parser ()
+kwAnd :: Parser ()
+kwAs :: Parser ()
+kwAttribute :: Parser ()
+kwBoolean :: Parser ()
+kwCall :: Parser ()
+kwCase :: Parser ()
+kwDim :: Parser ()
+kwDouble :: Parser ()
+kwElse :: Parser ()
+kwElseIf :: Parser ()
+kwEnd :: Parser ()
+kwExplicit :: Parser ()
+kwFalse :: Parser ()
+kwIf :: Parser ()
+kwInteger :: Parser ()
+kwOption :: Parser ()
+kwPrivate :: Parser ()
+kwPublic :: Parser ()
+kwSelect :: Parser ()
+kwString :: Parser ()
+kwSub :: Parser ()
+kwThen :: Parser ()
+kwTrue:: Parser ()
+kwAnd = kw "And"
+kwAs = kw "As"
+kwAttribute = kw "Attribute"
+kwBoolean = kw "Boolean"
 kwCall = kw "Call"
+kwCase = kw "Case"
+kwDim = kw "Dim"
+kwDouble = kw "Double"
+kwElse = kw "Else"
+kwElseIf = kw "ElseIf"
 kwEnd = kw "End"
+kwExplicit = kw "Explicit"
+kwFalse = kw "False"
+kwIf = kw "If"
+kwInteger = kw "Integer"
+kwOption = kw "Option"
+kwPrivate = kw "Private"
+kwPublic = kw "Public"
+kwSelect = kw "Select"
+kwString = kw "String"
 kwSub = kw "Sub"
+kwThen = kw "Then"
+kwTrue = kw "True"
 
 -- | Parse a newline.
 nl :: Parser ()
@@ -124,6 +195,25 @@ sepAndEndByNls1 p = p `endBy` nls1
 sepAndMaybeEndByNls1 :: Parser a -> Parser [a]
 sepAndMaybeEndByNls1 p = p `sepEndBy` nls1
 
+booleanLit :: Parser Expr
+booleanLit = tokenAccepter (\tok -> case tok of
+                               TKwFalse -> Just $ BooleanLit False
+                               TKwTrue -> Just $ BooleanLit True
+                               _ -> Nothing)
+            <?> "boolean literal"
+
+integerLit :: Parser Expr
+integerLit = tokenAccepter (\tok -> case tok of
+                               TIntegerLit i -> Just $ IntegerLit i
+                               _ -> Nothing)
+            <?> "integer literal"
+
+doubleLit :: Parser Expr
+doubleLit = tokenAccepter (\tok -> case tok of
+                              TDoubleLit x -> Just $ DoubleLit x
+                              _ -> Nothing)
+            <?> "double literal"
+
 -- | Parse a string literal.
 stringLit :: Parser Expr
 stringLit = tokenAccepter (\tok -> case tok of
@@ -140,20 +230,98 @@ sym c = tokenAccepter (\tok -> case tok of
 
 
 -- * The interesting parsers for our grammar
+visibility :: Parser (Maybe Visibility)
+visibility =
+  optionMaybe main
+  where
+    main = (kwPrivate *> pure Private) <|> (kwPublic *> pure Public)
 
 -- | Returns a parser for the contents of the file.
 basModule :: AbsFile         -- ^ Should be a \".bas\" file module.
            -> Parser Module
 basModule path = BasModule (makeRelative rootDir path) <$>
                  (nls *>
-                  sepAndMaybeEndByNls1 sub <*
+                  sepAndMaybeEndByNls1 topLevelStmt <*
                   eof)
+
+-- | Returns a parser for the contents of the file.
+form :: AbsFile         -- ^ Should be a \".frm\" file module.
+     -> Parser Module
+form path = Form (makeRelative rootDir path) <$>
+             frmHeader <*>
+               (nls *>
+               sepAndMaybeEndByNls1 topLevelStmt <*
+               eof)
+
+-- FIXME: return type
+
+frmHeader :: Parser ClassHeaderBlock
+frmHeader = do
+  localKw "VERSION" *> five *> nls1 *>
+    main
+  where
+    localKw s = tokenAccepter (\tok -> case tok of
+                                TIdent x | x == mkSymbolName s -> Just ()
+                                _ -> Nothing)
+    five = tokenAccepter (\tok -> case tok of
+                             TDoubleLit x | x == 5.00 -> Just ()
+                             _ -> Nothing)
+    frxRef = stringLit <* sym ':' <* integerLit -- FIXME return type
+    property = do
+      name <- ident
+      sym '='
+      val <- (try frxRef <|> expr) -- FIXME const expression, not expr
+      pure (ClassHeaderProp name val)
+    propertyBlock = localKw "BeginProperty" *> ident *> nls1 *>
+      many (try property *> nls1) *>
+      localKw "EndProperty" *>
+      pure ClassHeaderPropBlock -- FIXME type
+    main = do
+      localKw "Begin"
+      name1 <- ident
+      sym '.'
+      name2 <- ident
+      name3 <- ident <* nls
+      let name =
+            (raw name1)
+            ++ "."
+            ++ (raw name2)
+            ++ " "
+            ++ (raw name3)
+      blocks <- many (((ClassHeaderChild <$> main) <|> propertyBlock <|> property) <* nls1)
+      kwEnd
+      pure (ClassHeaderBlock name blocks)
+
+attribute :: Parser Attribute
+attribute = do
+  _ <- kwAttribute *> ident <* sym '=' *>
+       expr -- FIXME constant expression only?
+  return $ AttributeConstr -- FIXME
+
+dim :: Parser Dim
+dim = do
+  _ <- kwDim
+  things <- commaSep asSomething
+  return $ head things -- FIXME
+
+option :: Parser Option
+option = do
+  _ <- kwOption *> kwExplicit
+  return $ OptionConstr -- FIXME
+
+-- FIXME return type (for this an each stmt).
+topLevelStmt =
+  (Attribute <$> attribute)
+  <|> (Dim <$> dim)
+  <|> (Option <$> option)
+  <|> (Proc <$> sub)
 
 -- | Parser for the Sub statement.  Subs are a kind of procedure.
 sub :: Parser Proc
-sub = Sub <$> (kwSub *> ident) <*> procArgsDef <* nls1
-      <*> sepAndEndByNls1 inProcStmt
-      <* (kwEnd <* kwSub <?> "End Sub")
+sub = do
+  Sub <$> visibility <*> (kwSub *> ident) <*> procArgsDef <* nls1
+    <*> sepAndEndByNls1 inProcStmt
+    <* (kwEnd <* kwSub <?> "End Sub")
 
 -- | Parse the argument definition part of a procedure.  For example the
 --
@@ -165,13 +333,98 @@ sub = Sub <$> (kwSub *> ident) <*> procArgsDef <* nls1
 --
 -- For now we can only parse empty argument definitions.
 procArgsDef :: Parser ArgDefs
-procArgsDef = sym '(' *> sym ')' *> pure []
+procArgsDef = sym '(' *>
+              (commaSep asSomething) -- FIXME return this
+              *> sym ')' *> pure []
+
+-- FIXME: return type.  share code between procArgsDef and Dim statement.
+asSomething :: Parser Dim
+asSomething = do
+  x <- (,) <$> ident <*> optionMaybe (kwAs *>
+                                      choice [ kwInteger *> pure Integer
+                                             , kwDouble *> pure Double
+                                             ]
+                                      -- FIXME user defined types aren't keywords?
+                                     )
+  let (n, ty) = x
+  pure (DimConstr n ty)
+
+-- TODO: common code between inProcStmt and expr.
+callExpr =
+  try (CallType <$> ident <* sym '(' <*> commaSep expr <* sym ')')
 
 -- | Parser for statements which can appear inside a procedure.
 inProcStmt :: Parser InProcStmt
-inProcStmt = Call <$> (kwCall *> ident) <* sym '(' <*> commaSep expr <* sym ')'
+inProcStmt =
+  (Call <$> (kwCall *> ident) <* sym '(' <*> commaSep expr <* sym ')')
+  <|> (try (Let <$> ident <* sym '=' <*> expr))
+  <|> (Call <$> ident <*> commaSep expr)
+  <|> ifStmt
+  <|> caseStmt
              <?> "statement"
+
+caseStmt =
+  -- FIXME AST fields
+  Case <$>
+  (kwSelect *> kwCase *> expr) <* nls <*
+  many (kwCase <* expr <* nls1 <*
+        sepAndEndByNls1 inProcStmt <* nls) <*
+  kwEnd <* kwSelect
+
+ifStmt =
+  -- TODO could get rid of the tries by refactoring into a common.
+  -- cf getting rid of shift/reduce errors.
+  blockIf
+  <|> inlineIf
+
+blockIf =
+  -- TODO: can i get rid of the parentheses inside the If.  maybe
+  -- by putting kwIf before If?
+  If <$>
+      try ((kwIf *> expr) <* kwThen <* nls1) <*
+      -- TODO: maybe sepAndEndBy isn't great if I then have to be careful to use nls, instead of nls1 like the surroundings??
+      sepAndEndByNls1 inProcStmt <* nls <*
+      many elseIf <*
+      optionMaybe else' <*
+      kwEnd <* kwIf
+  where
+    elseIf = kwElseIf <* expr <* kwThen <* nls1 <*
+             sepAndEndByNls1 inProcStmt <* nls
+    else' = kwElse <* nls1 <*
+            sepAndEndByNls1 inProcStmt <* nls
+inlineIf =
+  If <$>
+  (kwIf *> expr) <* kwThen <* inProcStmt
 
 -- | Parse an expression.
 expr :: Parser Expr
-expr = stringLit <?> "expr"
+expr =
+  buildExpressionParser table term
+  <?> "expression"
+
+term :: Parser Expr
+term =
+  -- parens expr
+  (CallExpr <$> callExpr)
+  <|> (IdentExpr <$> ident) -- needs to be after call expr.  else implicit let of "foo = bar(args)" won't parse.
+  <|> booleanLit
+  <|> doubleLit
+  <|> integerLit
+  <|> stringLit
+  <?> "simple expression"
+
+blah x y = x -- TODO create Eq Expr in AST, etc.
+table =
+  [
+    -- FIXME precedence matters, is implicit in order.
+    [ Infix (do sym '='; return blah) AssocLeft
+    , Infix (do kwAnd; return blah) AssocLeft
+    , Infix (do sym '&'; return blah) AssocLeft
+    , Infix (do sym '*'; return blah) AssocLeft
+    , Infix (do sym '/'; return blah) AssocLeft,
+      Infix (do sym '+'; return Add) AssocLeft
+    , Infix (do sym '-'; return blah) AssocLeft
+    , Infix (do sym '.'; return blah) AssocLeft -- FIXME not at binary operator.
+    , Infix (do sym '<'; do sym '>'; return blah) AssocLeft
+    ]
+  ]

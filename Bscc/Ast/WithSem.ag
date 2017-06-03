@@ -35,6 +35,8 @@ MODULE {Bscc.Ast.WithSem}
 {
 SProject (..),
 SModules, SModule (..),
+SClassHeaderBlock (..), SClassHeaderBlockParts, SClassHeaderBlockPart (..), -- FIXME is this the right order relative to impl and also other import lines?
+STopLevels, STopLevel (..), SAttribute (..), SDim (..), SOption (..),
 SProcs, SProc (..),
 SProcPrototypes,
 SProcPrototype (..),       -- $SProcPrototype
@@ -62,12 +64,40 @@ DATA SProject
 TYPE SModules = [SModule]
 
 DATA SModule
-   | SBasModule  path: RelFile  procs: SProcs  name: SymbolName
+   | SBasModule  path: RelFile  topLevel: STopLevels  name: SymbolName
+   | SForm  path: RelFile  header: SClassHeaderBlock  topLevel: STopLevels  name: SymbolName
+
+DATA SClassHeaderBlock
+   | SClassHeaderBlock  classname: String  main: SClassHeaderBlockParts
+TYPE SClassHeaderBlockParts = [SClassHeaderBlockPart]
+DATA SClassHeaderBlockPart
+   | SClassHeaderChild  child: SClassHeaderBlock
+   | SClassHeaderProp  name: SymbolName   val: SExpr
+   | SClassHeaderPropBlock
+
+TYPE STopLevels = [STopLevel]
+
+DATA STopLevel
+   | SAttribute  attr: SAttribute
+   | SDim  dim: SDim
+   | SOption  option: SOption
+   | SProc  proc: SProc
+
+DATA SAttribute
+   | SAttributeConstr
+
+-- FIXME: why do I have this type instead of putting the data directlly on the STopLevel???????????? weird no?
+-- maybe makes sense for dim if can dim elsewhere.  but for option explicit makes about zero sense.
+DATA SDim
+   | SDimConstr  name: SymbolName  ty: SType
+
+DATA SOption
+   | SOptionConstr
 
 TYPE SProcs = [SProc]
 
 DATA SProc
-   | SProc  proto: SProcPrototype  body: SInProcStmts
+   | SProcConstr  proto: SProcPrototype  body: SInProcStmts
 
 TYPE SProcPrototypes = [SProcPrototype]
 
@@ -91,9 +121,13 @@ TYPE SArgDefs = [SArgDef]
 DATA SArgDef
    | SArgDef  name: SymbolName  ty: SType
 
+-- TODO: update in line with Expr
 DATA SType
-   | SDummySecondType
+   | SBoolean
+   | SDouble
+   | SInteger
    | SString
+   | SVariant
 
 {
 -- $SProcRetType
@@ -104,10 +138,17 @@ TYPE SProcRetType = MAYBE SType
 
 TYPE SInProcStmts = [SInProcStmt]
 
+-- TODO: parity with Plain.ag
 DATA SInProcStmt
    | SCall  proc: SProcPrototype  args: SExprs
+   | SLet  var: SymbolName  expr: SExpr
 
 TYPE SExprs = [SExpr]
 
+-- TODO: update in line with Expr
 DATA SExpr
+   | SDoubleLit  val: Double  ty: SType
    | SStringLit  val: String  ty: SType
+   | SIntegerLit  val: Integer  ty: SType
+   | SIdentExpr  name: SymbolName  ty: SType
+   | SAdd x: SExpr  y: SExpr  ty: SType

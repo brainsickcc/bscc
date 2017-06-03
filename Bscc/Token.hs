@@ -30,13 +30,36 @@ type Token = (SourcePos, TokenNoPos)
 data TokenNoPos =
   -- | Identifier
   TIdent SymbolName
+  | TComment String
   -- | Newline
   | TNl
   -- | Keywords begin here
+  | TKwAnd
+  | TKwAttribute
+  | TKwAs
+  | TKwBoolean
   | TKwCall
+  | TKwCase
+  | TKwDim
+  | TKwDouble
+  | TKwElse
+  | TKwElseIf
   | TKwEnd
+  | TKwExplicit
+  | TKwFalse
+  | TKwIf
+  | TKwInteger
+  | TKwOption
+  | TKwPrivate
+  | TKwPublic
+  | TKwSelect
+  | TKwString
   | TKwSub
-  -- | String literal
+  | TKwThen
+  | TKwTrue
+  -- | Literal (except boolean literals which are keywords)s
+  | TDoubleLit Double
+  | TIntegerLit Integer
   | TStringLit String
   -- | Symbol
   | TSym Char

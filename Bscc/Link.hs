@@ -43,6 +43,7 @@ link :: Triplet.Triplet  -- ^ Target machine triplet.
         -> IO AbsFile    -- ^ This computation performs the linking.
                          --   Its result is the path to the executable.
 link target objFiles outputName = do
+  let objFiles' = reverse objFiles -- FIXME link order because of startup form
   gcc_version' <- gcc_version target
   prefix <- Dir.prefix
   let cmd = Triplet.str target ++ "-ld"
@@ -52,13 +53,14 @@ link target objFiles outputName = do
                libdir ++ "/crt2.o",
                libdir_gcc ++ "/crtbegin.o"],
               -- Link errors unless objFiles come before -l.
-              map Path.toString objFiles,
+              map Path.toString objFiles',
               -- Find and link against libvbstd, and its dependencies.
               ["-L", prefix ++ "/" ++ Triplet.str target ++
                      "/sys-root/mingw/lib/",
                "-lvbstd",
                "-luserenv",
                "-lws2_32",
+               "-lvbgui",
                -- MinGW GCC by default links against all of these
                -- libraries:
                "-L" ++ libdir_gcc,
@@ -74,6 +76,8 @@ link target objFiles outputName = do
                "-luser32",
                "-lkernel32",
                libdir_gcc ++ "/crtend.o",
+               -- Plus
+                "-lgdi32",
                -- Use the GUI subsystem, as opposed to the default of
                -- console.
                "--subsystem=windows"]]

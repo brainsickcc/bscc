@@ -80,39 +80,109 @@ data SemError
   deriving (Eq, Show)
 }
 
-ATTR Project Modules Module Procs Proc InProcStmts InProcStmt
+ATTR Project Modules Module TopLevels TopLevel
+     Procs Proc InProcStmts InProcStmt
   [ | errs : {Seq.Seq SemError} | ]
-
+-- FIXME: why is errs in the middle but symbolTable on the left (inh)?
+-- TODO: can we use "+" with symbolTable / exportedSymbols
+-- FIXME: is the large text comment aboutthe symbol table magic
+-- slightly misleading ("exported" vs private)
 
 -- * This section is the boring and straightforward part of the
 -- transformation.
 
 ATTR Exprs Expr
+     CallType
+     Proc ArgDefs ArgDef Type InProcStmts InProcStmt
      SProcPrototype SArgDefs SArgDef SType SProcRetType SExpr
+     ClassHeaderBlock ClassHeaderBlockParts ClassHeaderBlockPart
      [ | | self: SELF ]
 
 ATTR Project [ | | typedAst: SProject ]
 SEM Project
   | Project  lhs.typedAst = SProject @modules.typedAst @name
 
+-- FIXME move into right place?
+ATTR TopLevels [ | | typedAst USE {:} {[]}: STopLevels ]
+ATTR TopLevel [ | | typedAst: STopLevel ]
+SEM TopLevel
+  | Attribute  lhs.typedAst = SAttribute @attr.typedAst
+  | Dim  lhs.typedAst = SDim @dim.typedAst
+  | Option  lhs.typedAst = SOption @option.typedAst
+  | Proc  lhs.typedAst = SProc @proc.typedAst
+
+ATTR TopLevels   [ | | procs USE {<>} {Seq.empty}:
+                          {Seq.Seq Proc} ]
+ATTR TopLevel    [ | | procs: {Seq.Seq Proc} ]
+SEM TopLevel
+   | Attribute  lhs.procs = Seq.empty
+   | Dim  lhs.procs = Seq.empty
+   | Option  lhs.procs = Seq.empty
+   | Proc  lhs.procs = Seq.singleton @proc.self
+
 ATTR Modules [ | | typedAst USE {:} {[]}: SModules ]
 ATTR Module  [ | | typedAst: SModule ]
+
 SEM Module
-  | BasModule  lhs.typedAst = SBasModule @path @procs.typedAst @loc.name
+  | BasModule  inst.procs : Procs
+               inst.procs = toList @topLevels.procs
+               procs.inProject = @lhs.inProject
+               procs.inModule = @name
+               lhs.typedAst = SBasModule @path @topLevels.typedAst @loc.name
                loc.name' = Path.toString $ takeBaseName @path
                loc.name = mkSymbolName (if null @loc.name'
                                         then "Module1"
                                         else @loc.name')
+  | Form       inst.procs : Procs
+               inst.procs = toList @topLevels.procs
+               procs.inProject = @lhs.inProject
+               procs.inModule = @name
+               lhs.typedAst = SForm @path
+                                    @header.typedAst
+                                    @topLevels.typedAst
+                                    @loc.name -- FIXME long
+               loc.name' = Path.toString $ takeBaseName @path
+               loc.name = mkSymbolName (if null @loc.name'
+                                        then "Form1"
+                                        else @loc.name')
 
-ATTR Procs [ | | typedAst USE {:} {[]}: SProcs ]
+ATTR Attribute  [ | | typedAst: SAttribute ]
+SEM Attribute
+  | AttributeConstr  lhs.typedAst = SAttributeConstr
+
+ATTR Dim   [ | | typedAst: SDim ]
+SEM Dim
+  | DimConstr  lhs.typedAst = SDimConstr @name @ty.typedAst
+
+ATTR MaybeType  [ | | typedAst: SType ]
+SEM MaybeType
+  | Just  lhs.typedAst = @just.typedAst
+  | Nothing  lhs.typedAst = SVariant
+
+ATTR Option   [ | | typedAst: SOption ]
+SEM Option
+  | OptionConstr  lhs.typedAst = SOptionConstr
+
+-- ATTR Procs [ | | typedAst USE {:} {[]}: SProcs ]
 ATTR Proc  [ | | typedAst: SProc  proto: SProcPrototype ]
 
 SEM Proc
-  | Sub  lhs.typedAst = SProc @loc.proto @body.typedAst
+  | Sub  lhs.typedAst = SProcConstr @loc.proto @body.typedAst
          loc.proto = SProcPrototype @name
                                     @argDefs.typedAst  Nothing
                                     @lhs.inProject @lhs.inModule
 
+ATTR ClassHeaderBlock [ | | typedAst: SClassHeaderBlock ]
+SEM ClassHeaderBlock
+  | ClassHeaderBlock  lhs.typedAst = SClassHeaderBlock  @classname @main.typedAst
+
+ATTR ClassHeaderBlockParts [ | | typedAst USE {:} {[]}: SClassHeaderBlockParts ]
+ATTR ClassHeaderBlockPart [ | | typedAst: SClassHeaderBlockPart ]
+SEM ClassHeaderBlockPart
+  | ClassHeaderChild  lhs.typedAst = SClassHeaderChild @child.typedAst
+  | ClassHeaderProp  lhs.typedAst = SClassHeaderProp @name  @val.translated
+                     val.symbolTable = mempty
+  | ClassHeaderPropBlock  lhs.typedAst = SClassHeaderPropBlock
 
 ATTR ArgDefs [ | | typedAst USE {:} {[]}: SArgDefs ]
 ATTR ArgDef  [ | | typedAst: SArgDef ]
@@ -121,12 +191,16 @@ SEM ArgDef
 
 ATTR Type [ | | typedAst: SType ]
 SEM Type
-  | DummySecondType  lhs.typedAst = SDummySecondType
+  | Boolean  lhs.typedAst = error "Sem: Type: Boolean" -- TODO
+  | Double  lhs.typedAst = SDouble
+  | Integer  lhs.typedAst = SInteger
   | String  lhs.typedAst = SString
+  | Variant  lhs.typedAst = SVariant
 
 ATTR InProcStmts [ | | typedAst USE {:} {[]}: SInProcStmts ]
 ATTR InProcStmt  [ | | typedAst: SInProcStmt ]
 SEM InProcStmt
+  -- FIXME SymTable.lookup: make sure we found a proc, not a variable
   | Call  loc.maybeFoundCallee = SymTable.lookup @fn
                                                  @lhs.symbolTable
           loc.errsNotFound = case @loc.maybeFoundCallee of
@@ -143,6 +217,8 @@ SEM InProcStmt
           inst.foundCalleeArgDefs = toList @foundCalleeProto.argDefs
           inst.coercedArgs : CoercedExprs
           inst.coercedArgs = zip (toList @args.self) (@foundCalleeArgDefs.ty)
+          -- FIXME is this required? or copy ruled?
+          -- coercedArgs.symbolTable = @lhs.symbolTable
           loc.errsBadArgs =
             if not $ Seq.null @loc.errsNotFound
             -- Can't determine if the arguments are invalid if we can't
@@ -156,6 +232,9 @@ SEM InProcStmt
                      then @coercedArgs.typedAst
                      else error "SEM InProcStmt | Call: loc.args"
           lhs.typedAst = SCall @foundCalleeProto.self @loc.args
+  | Case  lhs.typedAst = error "Sem: InProcStmt: Case" -- TODO
+  | If  lhs.typedAst = error "Sem: InProcStmt: If" -- TODO
+  | Let  lhs.typedAst = SLet @var @expr.translated
 
 ATTR SProcPrototype [ | | argDefs: SArgDefs ]
 SEM SProcPrototype
@@ -185,10 +264,11 @@ SEM SArgDef
 -- analyzed.  For both semantic analysis and codegen we need to know
 -- where symbols (and their implementation or storage, etc.) reside.
 
+-- FIXME: understaand why this symbolTable is lhs but the other symboltables are understandably inh.
 ATTR Project        [ | | symbolTable: {SymbolTable} ]
-ATTR Modules Module Procs Proc [ inProject: SymbolName | | ]
+ATTR Modules Module TopLevels TopLevel Procs Proc [ inProject: SymbolName | | ]
 SEM Project
-  | Project   -- Add in symbols from the standard library (libvbstd) to
+  | Project   -- Add in symbols from the standard library (libvbstd)
               -- those exported from the source files of the project.
              loc.symbolTable = @modules.exportedSymbols
                                `SymTable.union` libvbstdProtos
@@ -205,56 +285,85 @@ libvbstdProtos = toSymbolTable $ map SymbolProc procs
                                 (mkSymbolName "Interaction")]
 }
 
-ATTR Modules Module Procs Proc
-     InProcStmts InProcStmt [ symbolTable: {SymbolTable} | | ]
+ATTR Modules Module TopLevels TopLevel Procs Proc
+     InProcStmts InProcStmt CallType Exprs Expr CoercedExprs CoercedExpr [ symbolTable: {SymbolTable} | | ]
 -- Implicit SEM: the symbolTable is inherited all the way down.
 
 ATTR Modules [ | | exportedSymbols
                    USE {`SymTable.union`} {SymTable.empty}: {SymbolTable} ]
-ATTR Module Procs [ | | exportedSymbols: {SymbolTable} ]
-SEM Procs
-  | Cons  loc.errsProc =
-          {
-            case SymTable.lookup @hd.name @tl.exportedSymbols of
-              Just x -> Seq.singleton $ DuplicateSymbol @hd.name @lhs.inModule
-              Nothing -> mempty
-          }
-          +errs = (<> @loc.errsProc)
-          lhs.exportedSymbols = SymTable.insert (SymbolProc @hd.proto)
-                                                 @tl.exportedSymbols
+ATTR Module TopLevels [ | | exportedSymbols: {SymbolTable} ]
+SEM TopLevels
+  | Cons  -- loc.errsProc =
+          -- {
+          --   case SymTable.lookup @hd.name @tl.exportedSymbols of
+          --     Just x -> Seq.singleton $ DuplicateSymbol @hd.name @lhs.inModule
+          --     Nothing -> mempty
+          -- }
+          --  +errs = (<> @loc.errsProc)
+          lhs.exportedSymbols = case @hd.exportedSymbol of
+                                  Just exportedSymbol -> SymTable.insert exportedSymbol @tl.exportedSymbols
+                                  Nothing -> @tl.exportedSymbols
   | Nil   lhs.exportedSymbols = SymTable.empty
+
+ATTR TopLevel Dim [ | | exportedSymbol: {Maybe Symbol} ]
+SEM TopLevel
+  | Attribute  lhs.exportedSymbol = Nothing
+  | Option  lhs.exportedSymbol = Nothing
+  | Proc  lhs.exportedSymbol = Just (SymbolProc @proc.proto)
+  -- | Dim  lhs.exportedSymbol = @dim.exportedSymbol
+
+SEM Dim
+  | DimConstr  lhs.exportedSymbol = Just (SymbolVariable @name @ty.typedAst)
 
 ATTR Proc [ | | name: SymbolName ]
 SEM Proc
+  -- TODO: Visibility
   | Sub  lhs.name = @name
 
-ATTR Procs Proc [ inModule: SymbolName | | ]
+ATTR TopLevels TopLevel Procs Proc [ inModule: SymbolName | | ]
 SEM Module
-  | BasModule  procs.inModule = @loc.name
+  | BasModule  topLevels.inModule = @loc.name
+  | Form       topLevels.inModule = @loc.name
 
 
 -- * Handling Sub Main, the entry point to the program.
 SEM Project
-  | Project  loc.mainErrs = case Seq.length @modules.mainProcs of
-                              0 -> Seq.singleton SubMainDoesNotExist
-                              1 -> mempty
-                              _ -> Seq.singleton SubMainTooMany
+  | Project
+             -- loc.mainErrs = case Seq.length @modules.mainProcs of
+             --                  0 -> Seq.singleton SubMainDoesNotExist
+             --                  1 -> mempty
+             --                  _ -> Seq.singleton SubMainTooMany
+             loc.mainErrs = Seq.empty
              +errs = (@loc.mainErrs <>)
 
 ATTR Modules [ | | mainProcs USE {<>} {Seq.empty}: {Seq.Seq SProcPrototype}]
 ATTR Module [ | | mainProcs: {Seq.Seq SProcPrototype} ]
 SEM Module
    | BasModule  lhs.mainProcs = case SymTable.lookup (mkSymbolName "Main")
-                                                     @procs.exportedSymbols of
+                                                     @topLevels.exportedSymbols of
                                   Just (SymbolProc proto) -> Seq.singleton proto
                                   _ -> mempty
+   | Form       lhs.mainProcs = mempty
 
 
 -- * Support for expressions and their coercion.
 
 ATTR Expr [ | | translated: SExpr ]
 SEM Expr
+  | Add
+    inst.xt : SExpr
+    inst.xt = @x.translated
+    -- FIXME: type of Add
+    lhs.translated = SAdd @xt.self @y.translated @xt.ty
+  | BooleanLit  lhs.translated = error "Sem: Expr: BooleanLit" -- TODO
+  | CallExpr  lhs.translated = error "Sem: Expr: CallExpr" -- TODO
+  | DoubleLit  lhs.translated = SDoubleLit @val SDouble
+  | IntegerLit  lhs.translated = SIntegerLit @val SInteger
   | StringLit  lhs.translated = SStringLit @val SString
+  -- FIXME error handling
+  | IdentExpr lhs.translated = case SymTable.lookup @name @lhs.symbolTable of
+                                 Just (SymbolVariable name ty) -> SIdentExpr name ty
+                                 _ -> error ("IdentExpr: no variable symbol found\n" ++ "name: " ++ show @name ++ "\n" ++ show @lhs.symbolTable)
 
 ATTR CoercedExprs [ | | coercionErrs USE {<>} {Seq.empty}: {Seq.Seq SemError} ]
 ATTR CoercedExprs [ | | typedAst USE {:} {[]}: SExprs ]
@@ -278,5 +387,7 @@ SEM CoercedExpr
 
 ATTR SExpr [ | | ty: SType ]
 SEM SExpr
+  | SDoubleLit  lhs.ty = @ty.self
   | SStringLit  lhs.ty = @ty.self
-
+  | SIntegerLit  lhs.ty = @ty.self
+  | SIdentExpr  lhs.ty = @ty.self
