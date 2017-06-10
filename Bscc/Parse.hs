@@ -364,13 +364,18 @@ inProcStmt =
   <|> caseStmt
              <?> "statement"
 
-caseStmt =
-  -- FIXME AST fields
-  Case <$>
-  (kwSelect *> kwCase *> expr) <* nls <*
-  many (kwCase <* expr <* nls1 <*
-        sepAndEndByNls1 inProcStmt <* nls) <*
-  kwEnd <* kwSelect
+caseStmt :: Parser InProcStmt
+caseStmt = do
+  expr <- (kwSelect *> kwCase *> expr) <* nls
+  cases <- many case'
+  let default' = Nothing -- FIXME
+  void (kwEnd <* kwSelect)
+  pure $ SelectCase expr cases default'
+  where
+    case' = do
+      expr <- kwCase *> expr <* nls1
+      stmts <- sepAndEndByNls1 inProcStmt <* nls
+      pure $ Simple expr stmts
 
 ifStmt :: Parser InProcStmt
 ifStmt =

@@ -113,6 +113,7 @@ ATTR SModule
      SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
      STopLevels STopLevel
      SProcs SProc SInProcStmts SInProcStmt SExprs SExpr SElseIfs SElseIf
+     SCases SCase
      [ | counter: Int | ]
 SEM SModules
   | Cons  hd.counter = 1
@@ -622,6 +623,7 @@ ATTR SProc SInProcStmts SInProcStmt SExprs
      -- STopLevels STopLevel SAttribute SDim SOption SAttributes
      -- SModule SModules
      SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
+     SCases SCase
      [ | | self: SELF ]
 
 ATTR SProcPrototype [ | | importDeclaration: {G.Global}
@@ -840,6 +842,7 @@ ATTR STopLevels STopLevel
      SProcs SProc
      SElseIfs SElseIf
      SProcPrototypes SProcPrototype SInProcStmts SInProcStmt
+     SCases SCase
                       [ inProject: SymbolName
                         inModule: SymbolName  | | ]
 SEM SProject

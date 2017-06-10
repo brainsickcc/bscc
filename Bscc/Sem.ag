@@ -83,6 +83,7 @@ data SemError
 
 ATTR Project Modules Module TopLevels TopLevel
      Procs Proc InProcStmts InProcStmt ElseIfs ElseIf
+     Cases Case
   [ | errs : {Seq.Seq SemError} | ]
 -- FIXME: why is errs in the middle but symbolTable on the left (inh)?
 -- TODO: can we use "+" with symbolTable / exportedSymbols
@@ -97,6 +98,7 @@ ATTR Exprs Expr
      Proc ArgDefs ArgDef Type InProcStmts InProcStmt
      SProcPrototype SArgDefs SArgDef SType SProcRetType SExpr
      ClassHeaderBlock ClassHeaderBlockParts ClassHeaderBlockPart
+     Cases Case
      [ | | self: SELF ]
 
 ATTR Project [ | | typedAst: SProject ]
@@ -233,7 +235,10 @@ SEM InProcStmt
                      then @coercedArgs.typedAst
                      else error "SEM InProcStmt | Call: loc.args"
           lhs.typedAst = SCall @foundCalleeProto.self @loc.args
-  | Case  lhs.typedAst = error "Sem: InProcStmt: Case" -- TODO
+  | SelectCase
+      inst.default2 : InProcStmts
+      inst.default2 = @default' & maybeToList & concat
+      lhs.typedAst = SSelectCase @expr.translated  @cases.typedAst @default2.typedAst
   | If
       loc.true = @true.typedAst
       inst.false2 : InProcStmts
@@ -242,6 +247,11 @@ SEM InProcStmt
       inst.elseIfs2 = @elseIfs & map (uncurry ElseIf)
       lhs.typedAst = SIf @cond.translated @loc.true @elseIfs2.typedAst @false2.typedAst
   | Let  lhs.typedAst = SLet @var @expr.translated
+
+ATTR Cases [ | | typedAst USE {:} {[]}: SCases ]
+ATTR Case  [ | | typedAst: SCase ]
+SEM Case
+  | Simple  lhs.typedAst = SSimple  @expr.translated  @stmts.typedAst
 
 {
   -- or i could tell uuagc to generate data for this module.  but not export.
@@ -308,6 +318,7 @@ libvbstdProtos = toSymbolTable $ map SymbolProc procs
 }
 
 ATTR Modules Module TopLevels TopLevel Procs Proc
+     Cases Case
      InProcStmts InProcStmt CallType ElseIfs ElseIf Exprs Expr CoercedExprs CoercedExpr [ symbolTable: {SymbolTable} | | ]
 -- Implicit SEM: the symbolTable is inherited all the way down.
 

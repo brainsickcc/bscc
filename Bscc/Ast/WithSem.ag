@@ -37,6 +37,7 @@ SProject (..),
 SModules, SModule (..),
 SClassHeaderBlock (..), SClassHeaderBlockParts, SClassHeaderBlockPart (..), -- FIXME is this the right order relative to impl and also other import lines?
 STopLevels, STopLevel (..), SAttribute (..), SDim (..), SOption (..),
+SCases, SCase (..),
 SProcs, SProc (..),
 SProcPrototypes,
 SProcPrototype (..),       -- $SProcPrototype
@@ -142,7 +143,12 @@ TYPE SInProcStmts = [SInProcStmt]
 DATA SInProcStmt
    | SCall  proc: SProcPrototype  args: SExprs
    | SLet  var: SymbolName  expr: SExpr
+   | SSelectCase  expr: SExpr  cases: SCases  default': SInProcStmts
    | SIf cond: SExpr  true: SInProcStmts  elseIfs: {[(SExpr, SInProcStmts)]}  false: SInProcStmts
+
+TYPE SCases = [SCase]
+DATA SCase
+   | SSimple  expr: SExpr  stmts: SInProcStmts
 
 TYPE SExprs = [SExpr]
 
