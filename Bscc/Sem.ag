@@ -38,8 +38,9 @@ import Bscc.Sem.Internal.Types
 import Bscc.Symbol.Name (mkSymbolName, SymbolName)
 import Bscc.Symbol.Table as SymTable
 
-import Control.Lens.Operators ((<&>))
+import Control.Lens.Operators ((&), (<&>))
 import Data.Foldable (toList)
+import Data.Maybe (maybeToList)
 import Data.Monoid ((<>), mempty)
 import qualified Data.Sequence as Seq
 import Prelude hiding (FilePath)
@@ -81,7 +82,7 @@ data SemError
 }
 
 ATTR Project Modules Module TopLevels TopLevel
-     Procs Proc InProcStmts InProcStmt
+     Procs Proc InProcStmts InProcStmt ElseIfs ElseIf
   [ | errs : {Seq.Seq SemError} | ]
 -- FIXME: why is errs in the middle but symbolTable on the left (inh)?
 -- TODO: can we use "+" with symbolTable / exportedSymbols
@@ -233,8 +234,29 @@ SEM InProcStmt
                      else error "SEM InProcStmt | Call: loc.args"
           lhs.typedAst = SCall @foundCalleeProto.self @loc.args
   | Case  lhs.typedAst = error "Sem: InProcStmt: Case" -- TODO
-  | If  lhs.typedAst = error "Sem: InProcStmt: If" -- TODO
+  | If
+      loc.true = @true.typedAst
+      inst.false2 : InProcStmts
+      inst.false2 = @false & maybeToList & concat
+      inst.elseIfs2 : ElseIfs
+      inst.elseIfs2 = @elseIfs & map (uncurry ElseIf)
+      lhs.typedAst = SIf @cond.translated @loc.true @elseIfs2.typedAst @false2.typedAst
   | Let  lhs.typedAst = SLet @var @expr.translated
+
+{
+  -- or i could tell uuagc to generate data for this module.  but not export.
+data ElseIf =
+  ElseIf { cond_ElseIf_ElseIf :: Expr, stmts_ElseIf_ElseIf :: InProcStmts}
+type ElseIfs = [ElseIf]
+}
+DATA ElseIf
+   | ElseIf  cond: Expr  stmts: InProcStmts
+TYPE ElseIfs = [ElseIf]
+ATTR ElseIfs [ | | typedAst USE {:} {[]}: {[(SExpr, SInProcStmts)]} ]
+ATTR ElseIf  [ | | typedAst: {(SExpr, SInProcStmts)} ]
+SEM ElseIf
+  | ElseIf
+    lhs.typedAst = (@cond.translated, @stmts.typedAst)
 
 ATTR SProcPrototype [ | | argDefs: SArgDefs ]
 SEM SProcPrototype
@@ -286,7 +308,7 @@ libvbstdProtos = toSymbolTable $ map SymbolProc procs
 }
 
 ATTR Modules Module TopLevels TopLevel Procs Proc
-     InProcStmts InProcStmt CallType Exprs Expr CoercedExprs CoercedExpr [ symbolTable: {SymbolTable} | | ]
+     InProcStmts InProcStmt CallType ElseIfs ElseIf Exprs Expr CoercedExprs CoercedExpr [ symbolTable: {SymbolTable} | | ]
 -- Implicit SEM: the symbolTable is inherited all the way down.
 
 ATTR Modules [ | | exportedSymbols

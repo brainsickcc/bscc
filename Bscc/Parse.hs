@@ -24,6 +24,7 @@ import Bscc.Symbol.Name
 import Bscc.Token
 
 import Control.Applicative ((<*), (<*>), (*>), (<$>), pure)
+import Control.Monad (void)
 import Prelude hiding (FilePath)
 import System.Path (AbsFile, makeRelative, rootDir)
 import qualified System.Path as Path
@@ -371,30 +372,40 @@ caseStmt =
         sepAndEndByNls1 inProcStmt <* nls) <*
   kwEnd <* kwSelect
 
+ifStmt :: Parser InProcStmt
 ifStmt =
   -- TODO could get rid of the tries by refactoring into a common.
   -- cf getting rid of shift/reduce errors.
   blockIf
   <|> inlineIf
 
-blockIf =
-  -- TODO: can i get rid of the parentheses inside the If.  maybe
-  -- by putting kwIf before If?
-  If <$>
-      try ((kwIf *> expr) <* kwThen <* nls1) <*
-      -- TODO: maybe sepAndEndBy isn't great if I then have to be careful to use nls, instead of nls1 like the surroundings??
-      sepAndEndByNls1 inProcStmt <* nls <*
-      many elseIf <*
-      optionMaybe else' <*
-      kwEnd <* kwIf
+blockIf :: Parser InProcStmt
+blockIf = do
+  cond <- try ((kwIf *> expr) <* kwThen <* nls1)
+  -- TODO: maybe sepAndEndBy isn't great if I then have to be careful to use nls, instead of nls1 like the surroundings??
+  true <- sepAndEndByNls1 inProcStmt <* nls
+  elseIfs <- many elseIf
+  false <- optionMaybe else'
+  void $ kwEnd <* kwIf
+  pure $ If cond true elseIfs false
   where
-    elseIf = kwElseIf <* expr <* kwThen <* nls1 <*
-             sepAndEndByNls1 inProcStmt <* nls
-    else' = kwElse <* nls1 <*
-            sepAndEndByNls1 inProcStmt <* nls
-inlineIf =
-  If <$>
-  (kwIf *> expr) <* kwThen <* inProcStmt
+    elseIf = do
+      cond <- kwElseIf *> expr <* (kwThen <* nls1)
+      expr <- sepAndEndByNls1 inProcStmt <* nls
+      pure (cond, expr)
+    else' = do
+      void (kwElse <* nls1)
+      sepAndEndByNls1 inProcStmt <* nls
+
+inlineIf :: Parser InProcStmt
+inlineIf = do
+  cond <- (kwIf *> expr) <* kwThen
+  true <- inProcStmt
+  -- FIXME: can there be many else ifs? if so, support.
+  let elseIfs = []
+  -- FIXME:
+  let false = Nothing
+  pure $ If cond [true] elseIfs false
 
 -- | Parse an expression.
 expr :: Parser Expr

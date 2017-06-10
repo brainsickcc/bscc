@@ -158,7 +158,7 @@ DATA InProcStmt
    -- TODO: use Call type.  To share with Expr.
    | Call  fn: SymbolName  args: Exprs
    | Case val: Expr
-   | If cond: Expr -- TODO/FIXME
+   | If cond: Expr  true: InProcStmts  elseIfs: {[(Expr, InProcStmts)]}  false: {Maybe InProcStmts}
    | Let  var: SymbolName  expr: Expr
 
 TYPE Exprs = [Expr]

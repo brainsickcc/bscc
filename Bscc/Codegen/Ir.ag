@@ -112,7 +112,7 @@ x86_stdcallcc = CC.Numbered 64
 ATTR SModule
      SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
      STopLevels STopLevel
-     SProcs SProc SInProcStmts SInProcStmt SExprs SExpr
+     SProcs SProc SInProcStmts SInProcStmt SExprs SExpr SElseIfs SElseIf
      [ | counter: Int | ]
 SEM SModules
   | Cons  hd.counter = 1
@@ -704,6 +704,7 @@ ATTR SInProcStmts [ | | instr USE {<>} {Seq.empty}:
 
 ATTR SInProcStmt  [ | | instr: {Seq.Seq (I.Named I.Instruction)} ]
 SEM SInProcStmt
+  | SIf  lhs.instr = error "Ir: SIf"
   | SCall  lhs.instr = I.Do (I.Call False x86_stdcallcc [] @proc.asCallable
                                     (toList @args.operandEtc) [] [])
                        & Seq.singleton
@@ -837,6 +838,7 @@ ATTR SModules SModule [ inProject: SymbolName | | ]
 -- FIXME long line
 ATTR STopLevels STopLevel
      SProcs SProc
+     SElseIfs SElseIf
      SProcPrototypes SProcPrototype SInProcStmts SInProcStmt
                       [ inProject: SymbolName
                         inModule: SymbolName  | | ]
@@ -860,9 +862,9 @@ SEM SModule
 -- Keep track of calls to procedures implemented in files other than the
 -- file containing the call; the prototypes of these functions need
 -- declared in the files calling them.
-ATTR SProcs SProc SInProcStmts [ | | usedNonLocalProcs:
+ATTR SProcs SProc SInProcStmts SExpr [ | | usedNonLocalProcs:
                                        {Set.Set SProcPrototype} ]
-ATTR SInProcStmt [ | | usedNonLocalProc: {Maybe SProcPrototype} ]
+ATTR SInProcStmt [ | | usedNonLocalProcs: {Set.Set SProcPrototype} ]
 
 SEM SProcs
   | Cons  lhs.usedNonLocalProcs = @tl.usedNonLocalProcs `Set.union`
@@ -870,17 +872,44 @@ SEM SProcs
   | Nil   lhs.usedNonLocalProcs = Set.empty
 
 SEM SInProcStmts
-  | Cons  lhs.usedNonLocalProcs = case @hd.usedNonLocalProc of
-                                    Just p -> Set.insert p
-                                                         @tl.usedNonLocalProcs
-                                    Nothing -> @tl.usedNonLocalProcs
+  | Cons  lhs.usedNonLocalProcs = @hd.usedNonLocalProcs `Set.union`
+                                  @tl.usedNonLocalProcs
   | Nil   lhs.usedNonLocalProcs = Set.empty
 
 SEM SInProcStmt
-  | SCall  lhs.usedNonLocalProc = if @proc.isModuleLocal
-                                  then Nothing
-                                  else Just @proc.self
-  | SLet  lhs.usedNonLocalProc = Nothing
+  | SCall  lhs.usedNonLocalProcs = if @proc.isModuleLocal
+                                   then Set.empty
+                                   else Set.singleton @proc.self
+  | SLet  lhs.usedNonLocalProcs = Set.empty
+  | SIf
+      inst.elseIfs2 : SElseIfs
+      inst.elseIfs2 = @elseIfs & map (uncurry SElseIf)
+      lhs.usedNonLocalProcs =
+        [@cond.usedNonLocalProcs, @true.usedNonLocalProcs, @elseIfs2.usedNonLocalProcs,@false.usedNonLocalProcs]
+        & Set.unions
+
+{
+  -- or i could tell uuagc to generate data for this module.  but not export.
+data SElseIf =
+  SElseIf { cond_SElseIf_SElseIf :: SExpr, stmts_SElseIf_SElseIf :: SInProcStmts}
+type SElseIfs = [SElseIf]
+}
+DATA SElseIf
+   | SElseIf  cond: SExpr  stmts: SInProcStmts
+TYPE SElseIfs = [SElseIf]
+ATTR SElseIfs [ | | usedNonLocalProcs USE {`Set.union`} {Set.empty}: {Set.Set SProcPrototype} ]
+ATTR SElseIf  [ | | usedNonLocalProcs: {Set.Set SProcPrototype} ]
+SEM SElseIf
+  | SElseIf
+    lhs.usedNonLocalProcs = Set.union @cond.usedNonLocalProcs @stmts.usedNonLocalProcs
+
+SEM SExpr
+  | SDoubleLit  lhs.usedNonLocalProcs = Set.empty
+  | SStringLit  lhs.usedNonLocalProcs = Set.empty
+  | SIntegerLit  lhs.usedNonLocalProcs = Set.empty
+  | SIdentExpr  lhs.usedNonLocalProcs = Set.empty
+  | SAdd  lhs.usedNonLocalProcs = Set.union @x.usedNonLocalProcs @y.usedNonLocalProcs
+  -- A call expression could be non-empty
 
 -- This answers this question: Is the procedure which is being used
 -- (that is, being called) being used in the module (and project)

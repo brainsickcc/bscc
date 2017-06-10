@@ -142,6 +142,7 @@ TYPE SInProcStmts = [SInProcStmt]
 DATA SInProcStmt
    | SCall  proc: SProcPrototype  args: SExprs
    | SLet  var: SymbolName  expr: SExpr
+   | SIf cond: SExpr  true: SInProcStmts  elseIfs: {[(SExpr, SInProcStmts)]}  false: SInProcStmts
 
 TYPE SExprs = [SExpr]
 
