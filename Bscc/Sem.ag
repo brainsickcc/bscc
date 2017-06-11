@@ -142,10 +142,8 @@ SEM Module
                inst.procs = toList @topLevels.procs
                procs.inProject = @lhs.inProject
                procs.inModule = @name
-               -- header.flat = []
                lhs.typedAst = SForm @path
-                                    (trace (groom (@header.flat))
-                                           @header.typedAst)
+                                    @header.flat
                                     @topLevels.typedAst
                                     @loc.name -- FIXME long
                loc.name' = Path.toString $ takeBaseName @path
@@ -179,14 +177,9 @@ SEM Proc
                                     @argDefs.typedAst  Nothing
                                     @lhs.inProject @lhs.inModule
 
--- ATTR ClassHeaderBlock ClassHeaderBlockPart ClassHeaderBlockParts [ | flat: SNewClassHeader | ]
 ATTR ClassHeaderBlock [ | | flat: SNewClassHeader ]
--- ATTR ClassHeaderBlock [ | flat: SNewClassHeader | ]
 SEM ClassHeaderBlock
   | ClassHeaderBlock
-      -- loc.flat = headerFlattenPrefixTraversal @self
-      -- +flat = (<> @loc.hey)
-      -- loc.hey = [SNewClassHeaderBlock @classname]
       loc.flat = SNewClassHeader @loc.me @loc.children
       loc.me = SNewClassHeaderBlock @classname @name @main.props
       inst.calcChildren : ClassHeaderBlockParts
@@ -207,6 +200,7 @@ SEM ClassHeaderBlockPart
       lhs.props = []
   | ClassHeaderProp
       lhs.props = [SNewPropSimple @name @val.translated]
+      val.symbolTable = SymTable.empty -- this is read because of the expr.  this isn't a symbol (property) that we export.  at least for now.
   | ClassHeaderPropBlock
       lhs.props = [] -- FIXME
 
@@ -218,55 +212,6 @@ SEM ClassHeaderBlockPart
    | ClassHeaderChild  lhs.myChildren = [@child.self]
    | ClassHeaderProp  lhs.myChildren = []
    | ClassHeaderPropBlock  lhs.myChildren = []
-
--- {
--- headerFlattenPrefixTraversal :: ClassHeaderBlock -> SNewClassHeader
--- headerFlattenPrefixTraversal (me@(ClassHeaderBlock classname main)) =
---   case me & prefix & map getBlock of
---     me:children -> SNewClassHeader me children
---     _ -> error "headerFlattenPrefixTraversal: unexpected lack of me"
---   where
---     getBlock block =
---       case block of
---         ClassHeaderBlock name parts ->
---           SNewClassHeaderBlock name (mapMaybe getProp parts)
---     getProp part =
---       case part of
---         ClassHeaderProp name expr -> Nothing -- FIXME
---         ClassHeaderPropBlock -> Nothing -- FIXME
---         ClassHeaderChild _ -> Nothing
---     children = []
---     -- Wanting DFS.  Check: not BFS.
---     prefix (me@(ClassHeaderBlock _ main)) =
---       me : (concatMap descendants main)
---       where
---         descendants p =
---           case p of
---             ClassHeaderChild block ->
---               prefix block
---             _ -> []
--- }
-
--- ATTR ClassHeaderBlockParts [ | | typedAst USE {:} {[]}: SClassHeaderBlockParts ]
--- ATTR ClassHeaderBlockPart [ | | typedAst: SClassHeaderBlockPart ]
--- SEM ClassHeaderBlockPart
---   | ClassHeaderChild  lhs.typedAst = SClassHeaderChild @child.typedAst
---   | ClassHeaderProp  lhs.typedAst = SClassHeaderProp @name  @val.translated
---                      val.symbolTable = mempty
---   | ClassHeaderPropBlock  lhs.typedAst = SClassHeaderPropBlock
-
-ATTR ClassHeaderBlock [ | | typedAst: SClassHeaderBlock ]
-SEM ClassHeaderBlock
-  | ClassHeaderBlock
-      loc.typedAst = SClassHeaderBlock  @classname @name @main.typedAst
-
-ATTR ClassHeaderBlockParts [ | | typedAst USE {:} {[]}: SClassHeaderBlockParts ]
-ATTR ClassHeaderBlockPart [ | | typedAst: SClassHeaderBlockPart ]
-SEM ClassHeaderBlockPart
-  | ClassHeaderChild  lhs.typedAst = SClassHeaderChild @child.typedAst
-  | ClassHeaderProp  lhs.typedAst = SClassHeaderProp @name  @val.translated
-                     val.symbolTable = mempty
-  | ClassHeaderPropBlock  lhs.typedAst = SClassHeaderPropBlock
 
 ATTR ArgDefs [ | | typedAst USE {:} {[]}: SArgDefs ]
 ATTR ArgDef  [ | | typedAst: SArgDef ]

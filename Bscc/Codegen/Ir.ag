@@ -110,7 +110,6 @@ x86_stdcallcc = CC.Numbered 64
 -- Sem on SIdentExpr can do such.  OR IS THAT AN AND???.
 -- Support for UNIQUEREF (generating unique numbers, for labels, etc.).
 ATTR SModule
-     SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
      STopLevels STopLevel
      SProcs SProc SInProcStmts SInProcStmt SExprs SExpr SElseIfs SElseIf
      SCases SCase
@@ -169,29 +168,6 @@ SEM SDim
                 -- loc.nameish : UNIQUEREF counter
                 -- loc.name = N.UnName (fromIntegral @loc.nameish)
                 loc.myname = raw @name & map Char.toLower & N.Name
-
-ATTR SClassHeaderBlock [ | | main: SClassHeaderBlockParts ]
-SEM SClassHeaderBlock
-  | SClassHeaderBlock  lhs.main = @main.self
-
-ATTR SClassHeaderBlockParts [ | | propName USE {:} {[]}: {[String]}
-                                  val USE {:} {[]}: {[SExpr]} ]
-ATTR SClassHeaderBlockPart [ | | propName: String
-                                 val: SExpr ]
-SEM SClassHeaderBlockPart
-  | SClassHeaderChild  lhs.propName = "CHILD"
-                       lhs.val = error "FIXME"
-  | SClassHeaderProp  lhs.propName = raw @name
-                      lhs.val = @val.self
-  | SClassHeaderPropBlock  lhs.propName = "PROPBLOCK"
-                           lhs.val = error "FIXME"
-
-ATTR SClassHeaderBlockParts [ | | children USE {++} {[]}: {[SClassHeaderBlock]} ]
-ATTR SClassHeaderBlockPart [ | | children: {[SClassHeaderBlock]} ]
-SEM SClassHeaderBlockPart
-  | SClassHeaderChild  lhs.children = [@child.self]
-  | SClassHeaderProp  lhs.children = []
-  | SClassHeaderPropBlock  lhs.children = []
 
 ATTR SModule      [ | | ir: {Seq.Seq (A.Module, RelFile)} ]
 SEM SModule
@@ -263,18 +239,15 @@ SEM SModule
                 -- loc.propHeaderTrace = trace (show @loc.propHeader) ""
                 -- loc.propHeader = 
 
-                inst.firstchildcalc : SClassHeaderBlockParts
-                inst.firstchildcalc = @header.main
+                inst.firstbutton : SNewClassHeaderBlock
+                inst.firstbutton = head @header.children
 
-                inst.firstchildblockscalc : SClassHeaderBlock
-                inst.firstchildblockscalc = head @firstchildcalc.children
-
-                inst.buttonanalysis : SClassHeaderBlockParts
-                inst.buttonanalysis = @firstchildblockscalc.main
+                inst.buttonanalysis : SNewProps
+                inst.buttonanalysis = @firstbutton.props
 
                 loc.buttondeterminecaption =
                   zip @buttonanalysis.propName @buttonanalysis.val
-                  & filter (\(name, val) -> (name == "Caption"))
+                  & filter (\(name, val) -> (name == mkSymbolName "Caption"))
                   & head
                   & snd
                 inst.buttonsetcaption : SExpr
@@ -282,7 +255,7 @@ SEM SModule
 
                 loc.buttondeterminewidth =
                   zip @buttonanalysis.propName @buttonanalysis.val
-                  & filter (\(name, val) -> (name == "Width"))
+                  & filter (\(name, val) -> (name == mkSymbolName "Width"))
                   & head
                   & snd
                 inst.buttonsetwidth : SExpr
@@ -290,7 +263,7 @@ SEM SModule
 
                 loc.buttondetermineheight =
                   zip @buttonanalysis.propName @buttonanalysis.val
-                  & filter (\(name, val) -> (name == "Height"))
+                  & filter (\(name, val) -> (name == mkSymbolName "Height"))
                   & head
                   & snd
                 inst.buttonsetheight : SExpr
@@ -306,8 +279,8 @@ SEM SModule
                 --                [] [])
                 loc.buttonsBlock =
                   G.BasicBlock (N.UnName 12)
-                    -- (map (const @loc.addonebutton) @header.main)
-                    (addonebuttonandsetcaptionetc (head @header.main) @buttonsetcaption.operandEtc @buttonsetwidth.operandEtc @buttonsetheight.operandEtc)
+                    -- (map (const @loc.addonebutton) @firstbutton)
+                    (addonebuttonandsetcaptionetc @firstbutton.self @buttonsetcaption.operandEtc @buttonsetwidth.operandEtc @buttonsetheight.operandEtc)
                     (I.Do (I.Br (N.UnName 999) []))
 
                 loc.retBlock =
@@ -377,6 +350,23 @@ SEM SModule
                   , addbtn, buttonsetcaption, buttonsetwidth, buttonsetheight
                   ]
                   & Seq.fromList
+
+-- this is necessary because of the higher ordr eattributes (@firstbutton.props) etc.  we obviously don't automatically get a copy of the raw fields
+ATTR SNewClassHeader [ | | children: SNewClassHeaderBlocks ]
+SEM SNewClassHeader
+  | SNewClassHeader  lhs.children = @children.self
+ATTR SNewClassHeaderBlock [ | | props: SNewProps ]
+SEM SNewClassHeaderBlock
+  | SNewClassHeaderBlock  lhs.props = @props.self
+
+
+ATTR SNewProps [ | | propName USE {:} {[]}: {[SymbolName]} ]
+ATTR SNewProp  [ | | propName: SymbolName]
+ATTR SNewProps [ | | val USE {:} {[]}: {[SExpr]} ]
+ATTR SNewProp  [ | | val: SExpr]
+SEM SNewProp
+   | SNewPropSimple  lhs.propName = @name
+                     lhs.val = @val.self
 
 {
 addonebuttonandsetcaptionetc btn captionop widthop heightop =
@@ -623,8 +613,8 @@ ATTR SProc SInProcStmts SInProcStmt SExprs
      SProcPrototypes SProcPrototype SArgDefs SArgDef SType SExpr SProcRetType
      -- STopLevels STopLevel SAttribute SDim SOption SAttributes
      -- SModule SModules
-     SClassHeaderBlock SClassHeaderBlockParts SClassHeaderBlockPart
      SCases SCase
+     SNewClassHeaderBlocks SNewClassHeaderBlock SNewProps SNewProp
      [ | | self: SELF ]
 
 ATTR SProcPrototype [ | | importDeclaration: {G.Global}
