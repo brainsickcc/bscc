@@ -317,21 +317,28 @@ libvbstdProtos = toSymbolTable $ map (\x -> (Nothing, SymbolProc x)) procs
                                 Nothing (mkSymbolName "VBA")
                                 (mkSymbolName "Interaction")]
 
--- buttonVtbl :: SymbolTable
--- buttonVtbl =
---   [ SetCaption IButton* -> BSTR -> HRESULT
---   , SetWidth  IButton* -> float -> HRESULT
---   , SetHeight  IButton* -> BSTR -> HRESULT
---   ,
---   ]
+buttonVtbl :: SymbolTable
+buttonVtbl =
+  [ (VtableIndex 0 & Just, SymbolProp (mkSymbolName "Caption") SString)
+  , (VtableIndex 1 & Just, SymbolProp (mkSymbolName "Width") SDouble)
+  , (VtableIndex 2 & Just, SymbolProp (mkSymbolName "Height") SDouble)
+  ]
+  & toSymbolTable
 
--- formVtbl :: SymbolTable
--- formVtbl
---   [ Load  IForm* -> HRESULT
---   , Show  IForm* -> HRESULT
---   , ControlsDotAdd  IForm* -> BSTR -> BSTR -> VARIANT -> IButton*
---   ,
---   ]
+formVtbl :: SymbolTable
+formVtbl =
+  [ (VtableIndex 0 & Just, SProcPrototype (mkSymbolName "Load") [] Nothing (mkSymbolName "VB") (mkSymbolName "Form") & SymbolProc)
+  , (VtableIndex 1 & Just, SProcPrototype (mkSymbolName "Show") [] Nothing (mkSymbolName "VB") (mkSymbolName "Form") & SymbolProc)
+  , (VtableIndex 2 & Just, SProcPrototype (mkSymbolName "Load")
+                                          [ SArgDef (mkSymbolName "ProgID") SString
+                                          , SArgDef (mkSymbolName "name") SString
+                                          , SArgDef (mkSymbolName "container") SVariant
+                                          ]
+                                          (Just SVariant)
+                                          (mkSymbolName "VB") (mkSymbolName "Form")
+                           & SymbolProc)
+  ]
+  & toSymbolTable
 }
 
 ATTR Modules Module TopLevels TopLevel Procs Proc
