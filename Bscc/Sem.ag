@@ -206,6 +206,7 @@ SEM InProcStmt
   -- FIXME SymTable.lookup: make sure we found a proc, not a variable
   | Call  loc.maybeFoundCallee = SymTable.lookup @fn
                                                  @lhs.symbolTable
+                                 & fmap snd -- FIXME vtblIdx
           loc.errsNotFound = case @loc.maybeFoundCallee of
                                Just s -> mempty
                                Nothing -> Seq.singleton $ SymbolNotFound @fn
@@ -310,11 +311,27 @@ SEM Project
 {
 -- | Symbols exported from the standard library (libvbstd).
 libvbstdProtos :: SymbolTable
-libvbstdProtos = toSymbolTable $ map SymbolProc procs
+libvbstdProtos = toSymbolTable $ map (\x -> (Nothing, SymbolProc x)) procs
   where procs = [SProcPrototype (mkSymbolName "MsgBox")
                                 [SArgDef (mkSymbolName "Prompt") SString]
                                 Nothing (mkSymbolName "VBA")
                                 (mkSymbolName "Interaction")]
+
+-- buttonVtbl :: SymbolTable
+-- buttonVtbl =
+--   [ SetCaption IButton* -> BSTR -> HRESULT
+--   , SetWidth  IButton* -> float -> HRESULT
+--   , SetHeight  IButton* -> BSTR -> HRESULT
+--   ,
+--   ]
+
+-- formVtbl :: SymbolTable
+-- formVtbl
+--   [ Load  IForm* -> HRESULT
+--   , Show  IForm* -> HRESULT
+--   , ControlsDotAdd  IForm* -> BSTR -> BSTR -> VARIANT -> IButton*
+--   ,
+--   ]
 }
 
 ATTR Modules Module TopLevels TopLevel Procs Proc
@@ -329,24 +346,28 @@ SEM TopLevels
   | Cons  -- loc.errsProc =
           -- {
           --   case SymTable.lookup @hd.name @tl.exportedSymbols of
-          --     Just x -> Seq.singleton $ DuplicateSymbol @hd.name @lhs.inModule
+          --     Just _ -> Seq.singleton $ DuplicateSymbol @hd.name @lhs.inModule
           --     Nothing -> mempty
           -- }
           --  +errs = (<> @loc.errsProc)
           lhs.exportedSymbols = case @hd.exportedSymbol of
-                                  Just exportedSymbol -> SymTable.insert exportedSymbol @tl.exportedSymbols
+                                  Just (vtblIdx, exportedSymbol) -> SymTable.insert vtblIdx exportedSymbol @tl.exportedSymbols
                                   Nothing -> @tl.exportedSymbols
   | Nil   lhs.exportedSymbols = SymTable.empty
 
-ATTR TopLevel Dim [ | | exportedSymbol: {Maybe Symbol} ]
+ATTR TopLevel Dim [ | | exportedSymbol: {Maybe (Maybe VtableIndex, Symbol)} ]
 SEM TopLevel
   | Attribute  lhs.exportedSymbol = Nothing
   | Option  lhs.exportedSymbol = Nothing
-  | Proc  lhs.exportedSymbol = Just (SymbolProc @proc.proto)
+  | Proc
+    loc.vtblIdx = Nothing -- FIXME
+    lhs.exportedSymbol = Just (@loc.vtblIdx, SymbolProc @proc.proto)
   -- | Dim  lhs.exportedSymbol = @dim.exportedSymbol
 
 SEM Dim
-  | DimConstr  lhs.exportedSymbol = Just (SymbolVariable @name @ty.typedAst)
+  | DimConstr
+    loc.vtblIdx = Nothing -- FIXME
+    lhs.exportedSymbol = Just (@loc.vtblIdx, SymbolVariable @name @ty.typedAst)
 
 ATTR Proc [ | | name: SymbolName ]
 SEM Proc
@@ -374,7 +395,8 @@ ATTR Module [ | | mainProcs: {Seq.Seq SProcPrototype} ]
 SEM Module
    | BasModule  lhs.mainProcs = case SymTable.lookup (mkSymbolName "Main")
                                                      @topLevels.exportedSymbols of
-                                  Just (SymbolProc proto) -> Seq.singleton proto
+                                  Just (_vtblIdx, SymbolProc proto) ->
+                                    Seq.singleton proto
                                   _ -> mempty
    | Form       lhs.mainProcs = mempty
 
@@ -395,7 +417,8 @@ SEM Expr
   | StringLit  lhs.translated = SStringLit @val SString
   -- FIXME error handling
   | IdentExpr lhs.translated = case SymTable.lookup @name @lhs.symbolTable of
-                                 Just (SymbolVariable name ty) -> SIdentExpr name ty
+                                 Just (_vtblIdx, SymbolVariable name ty) ->
+                                   SIdentExpr name ty
                                  _ -> error ("IdentExpr: no variable symbol found\n" ++ "name: " ++ show @name ++ "\n" ++ show @lhs.symbolTable)
 
 ATTR CoercedExprs [ | | coercionErrs USE {<>} {Seq.empty}: {Seq.Seq SemError} ]

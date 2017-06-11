@@ -29,6 +29,7 @@ MODULE {Bscc.Symbol.Table}
 -- Exports
 {
 Symbol (..),  -- $Symbol
+VtableIndex (..),
 SymbolTable,  -- $SymbolTable
 empty,
 insert,
@@ -69,6 +70,9 @@ SEM Symbol
   | SymbolProc  lhs.name = name_SProcPrototype_SProcPrototype @proto
   | SymbolVariable  lhs.name = @name
 
+DATA VtableIndex
+   | VtableIndex  idx: Int
+
 {
 -- $SymbolTable
 -- Type of a symbol table.  This type (including its associated
@@ -77,7 +81,7 @@ SEM Symbol
 }
 -- Consecutive `Symbol's, within a list of the image of the map, are
 -- always in decreasing or equal precedence.
-TYPE SymbolTable = MAP {SymbolName} {[Symbol]}
+TYPE SymbolTable = MAP {SymbolName} {[(Maybe VtableIndex, Symbol)]}
 
 {
 -- | /O(1)/.  The empty symbol table.
@@ -88,11 +92,11 @@ empty = Map.empty
 -- existing symbol: the returned table is always larger.
 --
 -- The inserted symbol has the highest possible precedence.
-insert :: Symbol -> SymbolTable -> SymbolTable
-insert sym = Map.insertWith (++) (symName sym) [sym]
+insert :: Maybe VtableIndex -> Symbol -> SymbolTable -> SymbolTable
+insert vtblIdx sym = Map.insertWith (++) (symName sym) [(vtblIdx, sym)]
   where symName x = name_Syn_Symbol $ wrap_Symbol (sem_Symbol x) Inh_Symbol
 
-lookup :: SymbolName -> SymbolTable -> Maybe Symbol
+lookup :: SymbolName -> SymbolTable -> Maybe (Maybe VtableIndex, Symbol)
 lookup n t = case Map.lookup n t of
                Nothing -> Nothing
                Just xs -> headMay xs
@@ -102,6 +106,6 @@ union :: SymbolTable -> SymbolTable -> SymbolTable
 union = Map.unionWith (++)
 
 -- | Create a symbol table from a list of uniquely-named symbols.
-toSymbolTable :: [Symbol] -> SymbolTable
-toSymbolTable syms = foldr insert empty syms
+toSymbolTable :: [(Maybe VtableIndex, Symbol)] -> SymbolTable
+toSymbolTable syms = foldr (uncurry insert) empty syms
 }
