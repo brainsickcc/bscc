@@ -74,7 +74,7 @@ DATA SNewClassHeader
 TYPE SNewClassHeaderBlocks = [SNewClassHeaderBlock]
 DATA SNewClassHeaderBlock
    -- FIXME: need name as well as classname
-   | SNewClassHeaderBlock  classname: String  props: SNewProps
+   | SNewClassHeaderBlock  classname: String  name: SymbolName  props: SNewProps
 TYPE SNewProps = [SNewProp]
 DATA SNewProp
    | SNewPropSimple  name: SymbolName  val: SExpr
@@ -82,7 +82,7 @@ DATA SNewProp
 
 -- FIXME terminology block vs is not is different plain vs withsem.
 DATA SClassHeaderBlock
-   | SClassHeaderBlock  classname: String  main: SClassHeaderBlockParts
+   | SClassHeaderBlock  classname: String  name: SymbolName  main: SClassHeaderBlockParts
 TYPE SClassHeaderBlockParts = [SClassHeaderBlockPart]
 DATA SClassHeaderBlockPart
    | SClassHeaderChild  child: SClassHeaderBlock

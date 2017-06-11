@@ -88,7 +88,7 @@ DATA Module
 TYPE ClassHeaderBlocks = [ClassHeaderBlock]
 
 DATA ClassHeaderBlock
-   | ClassHeaderBlock  classname: String  main: ClassHeaderBlockParts
+   | ClassHeaderBlock  classname: String  name: SymbolName  main: ClassHeaderBlockParts
 TYPE ClassHeaderBlockParts = [ClassHeaderBlockPart]
 DATA ClassHeaderBlockPart
    | ClassHeaderChild  child: ClassHeaderBlock

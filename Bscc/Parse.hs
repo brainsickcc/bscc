@@ -279,19 +279,17 @@ frmHeader = do
       pure ClassHeaderPropBlock -- FIXME type
     main = do
       localKw "Begin"
-      name1 <- ident
+      ty1 <- ident
       sym '.'
-      name2 <- ident
-      name3 <- ident <* nls
-      let name =
-            (raw name1)
+      ty2 <- ident
+      name <- ident <* nls
+      let ty =
+            (raw ty1)
             ++ "."
-            ++ (raw name2)
-            ++ " "
-            ++ (raw name3)
+            ++ (raw ty2)
       blocks <- many (((ClassHeaderChild <$> main) <|> propertyBlock <|> property) <* nls1)
       kwEnd
-      pure (ClassHeaderBlock name blocks)
+      pure (ClassHeaderBlock ty name blocks)
 
 attribute :: Parser Attribute
 attribute = do

@@ -188,7 +188,7 @@ SEM ClassHeaderBlock
       -- +flat = (<> @loc.hey)
       -- loc.hey = [SNewClassHeaderBlock @classname]
       loc.flat = SNewClassHeader @loc.me @loc.children
-      loc.me = SNewClassHeaderBlock @classname @main.props
+      loc.me = SNewClassHeaderBlock @classname @name @main.props
       inst.calcChildren : ClassHeaderBlockParts
       inst.calcChildren = @main.self
       inst.calcChildren2 : ClassHeaderBlocks
@@ -199,7 +199,7 @@ ATTR ClassHeaderBlocks [ | | wip USE {:} {[]}: SNewClassHeaderBlocks ]
 ATTR ClassHeaderBlock  [ | | wip: SNewClassHeaderBlock ]
 SEM ClassHeaderBlock
   | ClassHeaderBlock
-      lhs.wip = SNewClassHeaderBlock @classname @main.props
+      lhs.wip = SNewClassHeaderBlock @classname @name @main.props
 ATTR ClassHeaderBlockParts [ | | props USE {<>} {[]}: SNewProps ]
 ATTR ClassHeaderBlockPart  [ | | props: SNewProps ]
 SEM ClassHeaderBlockPart
@@ -258,7 +258,7 @@ SEM ClassHeaderBlockPart
 ATTR ClassHeaderBlock [ | | typedAst: SClassHeaderBlock ]
 SEM ClassHeaderBlock
   | ClassHeaderBlock
-      loc.typedAst = SClassHeaderBlock  @classname @main.typedAst
+      loc.typedAst = SClassHeaderBlock  @classname @name @main.typedAst
 
 ATTR ClassHeaderBlockParts [ | | typedAst USE {:} {[]}: SClassHeaderBlockParts ]
 ATTR ClassHeaderBlockPart [ | | typedAst: SClassHeaderBlockPart ]
