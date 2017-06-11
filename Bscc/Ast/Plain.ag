@@ -35,6 +35,7 @@ MODULE {Bscc.Ast.Plain}
 Project (..),                  -- $Project
 Visibility (..),
 Modules, Module (..),          -- $Module
+ClassHeaderBlocks,
 ClassHeaderBlock (..), ClassHeaderBlockParts, ClassHeaderBlockPart (..), -- FIXME is this the right order relative to impl and also other import lines?
 TopLevels, TopLevel (..), Attribute (..), Dim (..), Option (..),
 Cases, Case (..),
@@ -82,6 +83,9 @@ DATA Module
    | BasModule  path: RelFile  topLevels: TopLevels
    | Form  path: RelFile  header: ClassHeaderBlock topLevels: TopLevels
 -- FIXME singular or plural topLevel?  also in WithSem.ag
+
+-- FIXME: we don't use this here.  we flatten when we convert to sem.
+TYPE ClassHeaderBlocks = [ClassHeaderBlock]
 
 DATA ClassHeaderBlock
    | ClassHeaderBlock  classname: String  main: ClassHeaderBlockParts

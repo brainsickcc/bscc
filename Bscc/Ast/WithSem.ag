@@ -35,6 +35,7 @@ MODULE {Bscc.Ast.WithSem}
 {
 SProject (..),
 SModules, SModule (..),
+SNewClassHeader (..), SNewClassHeaderBlocks, SNewClassHeaderBlock (..), SNewProps, SNewProp (..),
 SClassHeaderBlock (..), SClassHeaderBlockParts, SClassHeaderBlockPart (..), -- FIXME is this the right order relative to impl and also other import lines?
 STopLevels, STopLevel (..), SAttribute (..), SDim (..), SOption (..),
 SCases, SCase (..),
@@ -68,6 +69,18 @@ DATA SModule
    | SBasModule  path: RelFile  topLevel: STopLevels  name: SymbolName
    | SForm  path: RelFile  header: SClassHeaderBlock  topLevel: STopLevels  name: SymbolName
 
+DATA SNewClassHeader
+   | SNewClassHeader  me: SNewClassHeaderBlock  children: SNewClassHeaderBlocks
+TYPE SNewClassHeaderBlocks = [SNewClassHeaderBlock]
+DATA SNewClassHeaderBlock
+   -- FIXME: need name as well as classname
+   | SNewClassHeaderBlock  classname: String  props: SNewProps
+TYPE SNewProps = [SNewProp]
+DATA SNewProp
+   | SNewPropSimple  name: SymbolName  val: SExpr
+   -- TODO: BeginProperty Font
+
+-- FIXME terminology block vs is not is different plain vs withsem.
 DATA SClassHeaderBlock
    | SClassHeaderBlock  classname: String  main: SClassHeaderBlockParts
 TYPE SClassHeaderBlockParts = [SClassHeaderBlockPart]

@@ -40,12 +40,14 @@ import Bscc.Symbol.Table as SymTable
 
 import Control.Lens.Operators ((&), (<&>))
 import Data.Foldable (toList)
-import Data.Maybe (maybeToList)
+import Data.Maybe (maybeToList, mapMaybe)
 import Data.Monoid ((<>), mempty)
+import Debug.Trace (trace)
 import qualified Data.Sequence as Seq
 import Prelude hiding (FilePath)
 import System.Path (RelFile, takeBaseName)
 import qualified System.Path as Path
+import Text.Groom (groom)
 }
 
 INCLUDE "Ast/Plain.ag"
@@ -140,8 +142,10 @@ SEM Module
                inst.procs = toList @topLevels.procs
                procs.inProject = @lhs.inProject
                procs.inModule = @name
+               -- header.flat = []
                lhs.typedAst = SForm @path
-                                    @header.typedAst
+                                    (trace (groom (@header.flat))
+                                           @header.typedAst)
                                     @topLevels.typedAst
                                     @loc.name -- FIXME long
                loc.name' = Path.toString $ takeBaseName @path
@@ -175,9 +179,86 @@ SEM Proc
                                     @argDefs.typedAst  Nothing
                                     @lhs.inProject @lhs.inModule
 
+-- ATTR ClassHeaderBlock ClassHeaderBlockPart ClassHeaderBlockParts [ | flat: SNewClassHeader | ]
+ATTR ClassHeaderBlock [ | | flat: SNewClassHeader ]
+-- ATTR ClassHeaderBlock [ | flat: SNewClassHeader | ]
+SEM ClassHeaderBlock
+  | ClassHeaderBlock
+      -- loc.flat = headerFlattenPrefixTraversal @self
+      -- +flat = (<> @loc.hey)
+      -- loc.hey = [SNewClassHeaderBlock @classname]
+      loc.flat = SNewClassHeader @loc.me @loc.children
+      loc.me = SNewClassHeaderBlock @classname @main.props
+      inst.calcChildren : ClassHeaderBlockParts
+      inst.calcChildren = @main.self
+      inst.calcChildren2 : ClassHeaderBlocks
+      inst.calcChildren2 = @calcChildren.myChildren
+      loc.children = @calcChildren2.wip
+
+ATTR ClassHeaderBlocks [ | | wip USE {:} {[]}: SNewClassHeaderBlocks ]
+ATTR ClassHeaderBlock  [ | | wip: SNewClassHeaderBlock ]
+SEM ClassHeaderBlock
+  | ClassHeaderBlock
+      lhs.wip = SNewClassHeaderBlock @classname @main.props
+ATTR ClassHeaderBlockParts [ | | props USE {<>} {[]}: SNewProps ]
+ATTR ClassHeaderBlockPart  [ | | props: SNewProps ]
+SEM ClassHeaderBlockPart
+  | ClassHeaderChild
+      lhs.props = []
+  | ClassHeaderProp
+      lhs.props = [SNewPropSimple @name @val.translated]
+  | ClassHeaderPropBlock
+      lhs.props = [] -- FIXME
+
+-- TODO rename children -> descendants and self?
+ATTR ClassHeaderBlockParts [ | | myChildren USE {<>} {[]}: ClassHeaderBlocks ]
+ATTR ClassHeaderBlockPart [ | | myChildren: ClassHeaderBlocks ]
+SEM ClassHeaderBlockPart
+   -- FIXME: do we include self?  grandchildren??
+   | ClassHeaderChild  lhs.myChildren = [@child.self]
+   | ClassHeaderProp  lhs.myChildren = []
+   | ClassHeaderPropBlock  lhs.myChildren = []
+
+-- {
+-- headerFlattenPrefixTraversal :: ClassHeaderBlock -> SNewClassHeader
+-- headerFlattenPrefixTraversal (me@(ClassHeaderBlock classname main)) =
+--   case me & prefix & map getBlock of
+--     me:children -> SNewClassHeader me children
+--     _ -> error "headerFlattenPrefixTraversal: unexpected lack of me"
+--   where
+--     getBlock block =
+--       case block of
+--         ClassHeaderBlock name parts ->
+--           SNewClassHeaderBlock name (mapMaybe getProp parts)
+--     getProp part =
+--       case part of
+--         ClassHeaderProp name expr -> Nothing -- FIXME
+--         ClassHeaderPropBlock -> Nothing -- FIXME
+--         ClassHeaderChild _ -> Nothing
+--     children = []
+--     -- Wanting DFS.  Check: not BFS.
+--     prefix (me@(ClassHeaderBlock _ main)) =
+--       me : (concatMap descendants main)
+--       where
+--         descendants p =
+--           case p of
+--             ClassHeaderChild block ->
+--               prefix block
+--             _ -> []
+-- }
+
+-- ATTR ClassHeaderBlockParts [ | | typedAst USE {:} {[]}: SClassHeaderBlockParts ]
+-- ATTR ClassHeaderBlockPart [ | | typedAst: SClassHeaderBlockPart ]
+-- SEM ClassHeaderBlockPart
+--   | ClassHeaderChild  lhs.typedAst = SClassHeaderChild @child.typedAst
+--   | ClassHeaderProp  lhs.typedAst = SClassHeaderProp @name  @val.translated
+--                      val.symbolTable = mempty
+--   | ClassHeaderPropBlock  lhs.typedAst = SClassHeaderPropBlock
+
 ATTR ClassHeaderBlock [ | | typedAst: SClassHeaderBlock ]
 SEM ClassHeaderBlock
-  | ClassHeaderBlock  lhs.typedAst = SClassHeaderBlock  @classname @main.typedAst
+  | ClassHeaderBlock
+      loc.typedAst = SClassHeaderBlock  @classname @main.typedAst
 
 ATTR ClassHeaderBlockParts [ | | typedAst USE {:} {[]}: SClassHeaderBlockParts ]
 ATTR ClassHeaderBlockPart [ | | typedAst: SClassHeaderBlockPart ]

@@ -114,6 +114,7 @@ ATTR SModule
      STopLevels STopLevel
      SProcs SProc SInProcStmts SInProcStmt SExprs SExpr SElseIfs SElseIf
      SCases SCase
+     SNewProp SNewProps SNewClassHeaderBlock SNewClassHeaderBlocks SNewClassHeader
      [ | counter: Int | ]
 SEM SModules
   | Cons  hd.counter = 1
