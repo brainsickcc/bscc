@@ -184,23 +184,39 @@ SEM ClassHeaderBlock
       loc.me = SNewClassHeaderBlock @classname @name @main.props
       inst.calcChildren : ClassHeaderBlockParts
       inst.calcChildren = @main.self
+      calcChildren.symbolTableForVtbl = getvtbl @classname
       inst.calcChildren2 : ClassHeaderBlocks
       inst.calcChildren2 = @calcChildren.myChildren
       loc.children = @calcChildren2.wip
+
+{
+getvtbl :: String -> SymbolTable
+getvtbl "VB.CommandButton" = buttonVtbl
+getvtbl "VB.Form" = formVtbl
+getvtbl _ = mempty
+}
 
 ATTR ClassHeaderBlocks [ | | wip USE {:} {[]}: SNewClassHeaderBlocks ]
 ATTR ClassHeaderBlock  [ | | wip: SNewClassHeaderBlock ]
 SEM ClassHeaderBlock
   | ClassHeaderBlock
       lhs.wip = SNewClassHeaderBlock @classname @name @main.props
-ATTR ClassHeaderBlockParts [ | | props USE {<>} {[]}: SNewProps ]
-ATTR ClassHeaderBlockPart  [ | | props: SNewProps ]
+      main.symbolTableForVtbl = getvtbl @classname
+ATTR ClassHeaderBlockParts [ symbolTableForVtbl: SymbolTable | | props USE {<>} {[]}: SNewProps ]
+ATTR ClassHeaderBlockPart  [ symbolTableForVtbl: SymbolTable | | props: SNewProps ]
 SEM ClassHeaderBlockPart
   | ClassHeaderChild
       lhs.props = []
+      --child.symbolTableForVtbl = mempty -- FIXME. required? if so explain
   | ClassHeaderProp
-      lhs.props = [SNewPropSimple @name @val.translated]
-      val.symbolTable = SymTable.empty -- this is read because of the expr.  this isn't a symbol (property) that we export.  at least for now.
+      lhs.props = [SNewPropSimple @name @loc.ty @loc.vtblIdx @val.translated]
+      loc.vtblEntry =
+        case SymTable.lookup @name @lhs.symbolTableForVtbl of
+          Just (Just idx, SymbolProp name ty) -> (idx, name, ty)
+          Nothing -> error ("property not found in vtable: " ++ show @name)
+      loc.ty = let (_, _, ty) = @loc.vtblEntry in ty
+      loc.vtblIdx = let (idx, _, _) = @loc.vtblEntry in idx
+      val.symbolTable = SymTable.empty -- this is read because of the expr.  this isn't a symbol (property) that we export.
   | ClassHeaderPropBlock
       lhs.props = [] -- FIXME
 
@@ -411,6 +427,7 @@ ATTR TopLevels TopLevel Procs Proc [ inModule: SymbolName | | ]
 SEM Module
   | BasModule  topLevels.inModule = @loc.name
   | Form       topLevels.inModule = @loc.name
+               --header.symbolTableForVtbl = formVtbl
 
 
 -- * Handling Sub Main, the entry point to the program.

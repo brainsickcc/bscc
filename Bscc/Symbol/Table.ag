@@ -29,7 +29,6 @@ MODULE {Bscc.Symbol.Table}
 -- Exports
 {
 Symbol (..),  -- $Symbol
-VtableIndex (..),
 SymbolTable,  -- $SymbolTable
 empty,
 insert,
@@ -72,9 +71,6 @@ SEM Symbol
   | SymbolProc  lhs.name = name_SProcPrototype_SProcPrototype @proto
   | SymbolVariable  lhs.name = @name
   | SymbolProp  lhs.name = @name
-
-DATA VtableIndex
-   | VtableIndex  idx: Int
 
 {
 -- $SymbolTable

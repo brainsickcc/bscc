@@ -614,7 +614,7 @@ ATTR SProc SInProcStmts SInProcStmt SExprs
      -- STopLevels STopLevel SAttribute SDim SOption SAttributes
      -- SModule SModules
      SCases SCase
-     SNewClassHeaderBlocks SNewClassHeaderBlock SNewProps SNewProp
+     SNewClassHeaderBlocks SNewClassHeaderBlock SNewProps SNewProp VtableIndex
      [ | | self: SELF ]
 
 ATTR SProcPrototype [ | | importDeclaration: {G.Global}
