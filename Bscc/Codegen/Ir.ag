@@ -219,7 +219,6 @@ SEM SModule
                 loc.fileLevelDecls = (@procs.fileLevelDecls <&> A.GlobalDefinition) <>
                                      @loc.declsUsedNonLocalProcs
                                      <> @topLevel.otherDecls
-                                     <> (fmap A.GlobalDefinition @buttonsetcaption.fileLevelDecls)
                 loc.declsUsedNonLocalProcs =
                 {
                   @usedNonLocalProcs.importDeclaration
@@ -239,38 +238,6 @@ SEM SModule
                 -- loc.propHeaderTrace = trace (show @loc.propHeader) ""
                 -- loc.propHeader = 
 
-                inst.firstbutton : SNewClassHeaderBlock
-                inst.firstbutton = head @header.children
-
-                inst.buttonanalysis : SNewProps
-                inst.buttonanalysis = @firstbutton.props
-
-                loc.buttondeterminecaption =
-                  zip @buttonanalysis.propName @buttonanalysis.val
-                  & filter (\(name, val) -> (name == mkSymbolName "Caption"))
-                  & head
-                  & snd
-                inst.buttonsetcaption : SExpr
-                inst.buttonsetcaption = @loc.buttondeterminecaption
-
-                loc.buttondeterminewidth =
-                  zip @buttonanalysis.propName @buttonanalysis.val
-                  & filter (\(name, val) -> (name == mkSymbolName "Width"))
-                  & head
-                  & snd
-                inst.buttonsetwidth : SExpr
-                inst.buttonsetwidth = @loc.buttondeterminewidth
-
-                loc.buttondetermineheight =
-                  zip @buttonanalysis.propName @buttonanalysis.val
-                  & filter (\(name, val) -> (name == mkSymbolName "Height"))
-                  & head
-                  & snd
-                inst.buttonsetheight : SExpr
-                inst.buttonsetheight = @loc.buttondetermineheight
-
-
-
                 -- loc.bar = @buttonanalysis.val
                 -- loc.addonebutton =
                 --   I.Do (I.Call False x86_stdcallcc []
@@ -280,7 +247,8 @@ SEM SModule
                 loc.buttonsBlock =
                   G.BasicBlock (N.UnName 12)
                     -- (map (const @loc.addonebutton) @firstbutton)
-                    (addonebuttonandsetcaptionetc @firstbutton.self @buttonsetcaption.operandEtc @buttonsetwidth.operandEtc @buttonsetheight.operandEtc)
+                    -- (addonebuttonandsetcaptionetc @firstbutton.self @buttonsetcaption.operandEtc @buttonsetwidth.operandEtc @buttonsetheight.operandEtc)
+                    (toList @header.init)
                     (I.Do (I.Br (N.UnName 999) []))
 
                 loc.retBlock =
@@ -347,56 +315,53 @@ SEM SModule
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
                   , form_load_ref, form_show_ref
                   , form_vtbl
-                  , addbtn, buttonsetcaption, buttonsetwidth, buttonsetheight
+                  , addbtn
                   ]
                   & Seq.fromList
 
--- this is necessary because of the higher ordr eattributes (@firstbutton.props) etc.  we obviously don't automatically get a copy of the raw fields
-ATTR SNewClassHeader [ | | children: SNewClassHeaderBlocks ]
+ATTR SNewClassHeader [ | | init: {Seq.Seq (I.Named I.Instruction)} ]
 SEM SNewClassHeader
-  | SNewClassHeader  lhs.children = @children.self
-ATTR SNewClassHeaderBlock [ | | props: SNewProps ]
+  | SNewClassHeader
+      lhs.init = @me.init <> @children.init
+
+ATTR SNewClassHeaderBlocks [ | | init USE {<>} {Seq.empty}: {Seq.Seq (I.Named I.Instruction)} ]
+ATTR SNewClassHeaderBlock [ | | init: {Seq.Seq (I.Named I.Instruction)} ]
 SEM SNewClassHeaderBlock
-  | SNewClassHeaderBlock  lhs.props = @props.self
+  | SNewClassHeaderBlock
+       loc.ctlinstridWip : UNIQUEREF counter
+       loc.ctlinstrid = N.UnName (fromIntegral @loc.ctlinstridWip)
+       loc.create =
+         [ @loc.ctlinstrid :=
+             I.Call False x86_stdcallcc []
+             (C.GlobalReference (T.FunctionType iButtonPtr [iButtonPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
+             [(O.LocalReference iFormPtr (N.UnName 11), [])]
+             [] []
+         ]
+         & Seq.fromList
+      loc.setprops = @props.init
+      lhs.init = @loc.create <> @props.init
 
+ATTR SNewProps [ ctlinstrid: {N.Name} | | init USE {<>} {Seq.empty}: {Seq.Seq (I.Named I.Instruction)} ]
+ATTR SNewProp  [ ctlinstrid: {N.Name} | | init: {Seq.Seq (I.Named I.Instruction)} ]
 
-ATTR SNewProps [ | | propName USE {:} {[]}: {[SymbolName]} ]
-ATTR SNewProp  [ | | propName: SymbolName]
-ATTR SNewProps [ | | val USE {:} {[]}: {[SExpr]} ]
-ATTR SNewProp  [ | | val: SExpr]
 SEM SNewProp
-   | SNewPropSimple  lhs.propName = @name
-                     lhs.val = @val.self
+   | SNewPropSimple
+       loc.propinstridWip : UNIQUEREF counter
+       loc.propinstrid = N.UnName (fromIntegral @loc.propinstridWip)
+       lhs.init =
+         [
+           -- loc.propinstrid :=
+           -- I.Call False x86_stdcallcc []
+           --  -- TODO: use button vtbl to ref and call the function
+           --  (C.GlobalReference (T.FunctionType T.i32 [iButtonPtr, ptr T.i16] False) (N.Name "ButtonSetCaption") & O.ConstantOperand & Right)
+           --  [ (O.LocalReference iButtonPtr ctlinstrid, [])
+           --  , captionop  -- TODO: use local properties to set this value
+           --  ]
+           -- [] []
+         ]
+         & Seq.fromList
 
 {
-addonebuttonandsetcaptionetc btn captionop widthop heightop =
-  [ N.UnName 13 := I.Call False x86_stdcallcc []
-                          (C.GlobalReference (T.FunctionType hwnd [iFormPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
-                          [(O.LocalReference iFormPtr (N.UnName 11), [])]
-                          [] []
-  , N.UnName 14 := I.Call False x86_stdcallcc []
-                          (C.GlobalReference (T.FunctionType T.void [iFormPtr, ptr T.i16] False) (N.Name "ButtonSetCaption") & O.ConstantOperand & Right)
-                          [ (O.LocalReference iFormPtr (N.UnName 13), [])
-                          , captionop
-                          ]
-                          [] []
-  , N.UnName 15 := I.Call False x86_stdcallcc []
-                          (C.GlobalReference (T.FunctionType T.void [iFormPtr, T.i32] False) (N.Name "ButtonSetWidth") & O.ConstantOperand & Right)
-                          [ (O.LocalReference iFormPtr (N.UnName 13), [])
-                          , widthop
-                          ]
-                          [] []
-  , N.UnName 16 := I.Call False x86_stdcallcc []
-                          (C.GlobalReference (T.FunctionType T.void [iFormPtr, T.i32] False) (N.Name "ButtonSetHeight") & O.ConstantOperand & Right)
-                          [ (O.LocalReference iFormPtr (N.UnName 13), [])
-                          , heightop
-                          ]
-                          [] []
-  ]
-
-
-
-
 ptr = flip T.PointerType (AddrSpace 0)
 formPtr = T.NamedTypeReference (N.Name "struct.Form")
           & ptr
@@ -475,38 +440,9 @@ addbtn =
              [] Nothing 0 Nothing
              []
   & A.GlobalDefinition
-buttonsetcaption =
-  G.Function L.External V.Default x86_stdcallcc []
-             T.void (N.Name "ButtonSetCaption") ( [ G.Parameter hwnd (N.UnName 1) []
-                                                  , G.Parameter (ptr T.i16) (N.UnName 2) []
-                                                  ]
-                                                , False
-                                                )
-             [] Nothing 0 Nothing
-             []
-  & A.GlobalDefinition
-buttonsetwidth =
-  G.Function L.External V.Default x86_stdcallcc []
-             T.void (N.Name "ButtonSetWidth") ( [ G.Parameter hwnd (N.UnName 1) []
-                                                , G.Parameter T.i32 (N.UnName 2) []
-                                                ]
-                                              , False
-                                              )
-             [] Nothing 0 Nothing
-             []
-  & A.GlobalDefinition
-buttonsetheight =
-  G.Function L.External V.Default x86_stdcallcc []
-             T.void (N.Name "ButtonSetHeight") ( [ G.Parameter hwnd (N.UnName 1) []
-                                                 , G.Parameter T.i32 (N.UnName 2) []
-                                                 ]
-                                               , False
-                                               )
-             [] Nothing 0 Nothing
-             []
-  & A.GlobalDefinition
 
 i8Ptr = ptr T.i8
+
 iForm = [ptr (T.NamedTypeReference (N.Name "struct.IFormVtbl"))]
         & T.StructureType False
         & Just & A.TypeDefinition (N.Name "struct.IForm")
@@ -520,9 +456,31 @@ iFormLoad = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormShow = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormVtbl = [ iFormLoad
             , iFormShow
+            -- , iFormControlsDotAdd
             ]
             & T.StructureType False
             & Just & A.TypeDefinition (N.Name "struct.IFormVtbl")
+
+
+iButton = [ptr (T.NamedTypeReference (N.Name "struct.IButtonVtbl"))]
+        & T.StructureType False
+        & Just & A.TypeDefinition (N.Name "struct.IButton")
+iButtonRef = T.NamedTypeReference (N.Name "struct.IButton")
+iButtonPtr = iButtonRef & ptr
+iButtonPtrPtr = iButtonPtr & ptr
+iButtonVtblRef = T.NamedTypeReference (N.Name "struct.IButtonVtbl")
+iButtonVtblPtr = iButtonVtblRef & ptr
+iButtonVtblPtrPtr = iButtonVtblPtr & ptr
+iButtonSetCaption = T.FunctionType T.i32 [iButtonPtr, ptr T.i16] False & ptr
+iButtonSetWidth = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iButtonSetHeight = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iButtonVtbl =
+  [ iButtonSetCaption
+  , iButtonSetWidth
+  , iButtonSetHeight
+  ]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "struct.IButtonVtbl")
 
 mkStartup :: () -> (A.Module, RelFile)
 mkStartup () =
