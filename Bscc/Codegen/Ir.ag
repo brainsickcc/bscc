@@ -331,6 +331,7 @@ SEM SNewClassHeaderBlock
        loc.ctlinstridWip : UNIQUEREF counter
        loc.ctlinstrid = N.UnName (fromIntegral @loc.ctlinstridWip)
        loc.create =
+         -- FIXME: don't call AddButton if @classname isn't VB.CommandButton!!!!!
          [ @loc.ctlinstrid :=
              I.Call False x86_stdcallcc []
              (C.GlobalReference (T.FunctionType iButtonPtr [iButtonPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
