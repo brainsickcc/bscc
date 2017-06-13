@@ -170,9 +170,9 @@ doNormalMode options userFiles = do
 
   -- A lot of the remainder of the compilation takes place in a temp dir.
   progName <- getProgName
-  --void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
-  void $ do
-    let tmpDirString = "/home/iain/programming/brainsickref/compilation-tmp"
+  void $ withSystemTempDirectory (progName ++ ".") $ \tmpDirString -> do
+  -- void $ do
+    -- let tmpDirString = "/home/iain/programming/brainsickref/compilation-tmp"
     tmpDir <- absolutizePath $ Path.absRel tmpDirString
     -- libbsccts provides required startup code.
     libbscctsIrPath <- getDataFileName $ relFile "libbsccts/startup.ll"

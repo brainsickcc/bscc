@@ -51,7 +51,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf16BE)
-import Data.Word (Word8, Word16)
+import Data.Word (Word, Word8, Word16)
 import qualified LLVM.General.AST as A
 import LLVM.General.AST.Attribute (ParameterAttribute)
 import LLVM.General.AST.AddrSpace (AddrSpace (AddrSpace))
@@ -116,7 +116,7 @@ ATTR SModule
      SNewProp SNewProps SNewClassHeaderBlock SNewClassHeaderBlocks SNewClassHeader
      [ | counter: Int | ]
 SEM SModules
-  | Cons  hd.counter = 1
+  | Cons  hd.counter = 30000 -- FIXME
 {
 -- | Function with required named and behaviour, per the UUAGC manual,
 -- for UNIQUEREF support.
@@ -311,7 +311,7 @@ SEM SModule
                       [] Nothing 0 Nothing
                       @loc.newFormBlocks
                     & A.GlobalDefinition
-                  , iForm, iFormVtbl, hwnd__, malloc
+                  , iForm, iFormVtbl, hwnd__, malloc, iButton, iButtonVtbl
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
                   , form_load_ref, form_show_ref
                   , form_vtbl
@@ -334,7 +334,7 @@ SEM SNewClassHeaderBlock
          -- FIXME: don't call AddButton if @classname isn't VB.CommandButton!!!!!
          [ @loc.ctlinstrid :=
              I.Call False x86_stdcallcc []
-             (C.GlobalReference (T.FunctionType iButtonPtr [iButtonPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
+             (C.GlobalReference (T.FunctionType iButtonPtr [iFormPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
              [(O.LocalReference iFormPtr (N.UnName 11), [])]
              [] []
          ]
@@ -347,20 +347,54 @@ ATTR SNewProp  [ ctlinstrid: {N.Name} | | init: {Seq.Seq (I.Named I.Instruction)
 
 SEM SNewProp
    | SNewPropSimple
-       loc.propinstridWip : UNIQUEREF counter
-       loc.propinstrid = N.UnName (fromIntegral @loc.propinstridWip)
-       lhs.init =
-         [
-           -- loc.propinstrid :=
-           -- I.Call False x86_stdcallcc []
-           --  -- TODO: use button vtbl to ref and call the function
-           --  (C.GlobalReference (T.FunctionType T.i32 [iButtonPtr, ptr T.i16] False) (N.Name "ButtonSetCaption") & O.ConstantOperand & Right)
-           --  [ (O.LocalReference iButtonPtr ctlinstrid, [])
-           --  , captionop  -- TODO: use local properties to set this value
-           --  ]
-           -- [] []
-         ]
-         & Seq.fromList
+       loc.n1wip : UNIQUEREF counter
+       loc.n1 = N.UnName (fromIntegral @loc.n1wip :: Word)
+       loc.n2wip : UNIQUEREF counter
+       loc.n2 = N.UnName (fromIntegral @loc.n2wip :: Word)
+       loc.n3wip : UNIQUEREF counter
+       loc.n3 = N.UnName (fromIntegral @loc.n3wip :: Word)
+       loc.n4wip : UNIQUEREF counter
+       loc.n4 = N.UnName (fromIntegral @loc.n4wip :: Word)
+       loc.n5wip : UNIQUEREF counter
+       loc.n5 = N.UnName (fromIntegral @loc.n5wip :: Word)
+       loc.n6wip : UNIQUEREF counter
+       loc.n6 = N.UnName (fromIntegral @loc.n6wip :: Word)
+       loc.n7wip : UNIQUEREF counter
+       loc.n7 = N.UnName (fromIntegral @loc.n7wip :: Word)
+       loc.n8wip : UNIQUEREF counter
+       loc.n8 = N.UnName (fromIntegral @loc.n8wip :: Word)
+       loc.n9wip : UNIQUEREF counter
+       loc.n9 = N.UnName (fromIntegral @loc.n9wip :: Word)
+       loc.vtblIdx = let (VtableIndex vtblIdx) = @vtblIdx.self in vtblIdx
+       -- FIXME: loc.idxish = fromIntegral @loc.vtblIdx
+       loc.idxish = 1 -- for Width -- FIXME
+       lhs.init = if @name == mkSymbolName "Width"
+                    then
+                      [
+                        @loc.n1 := I.Alloca iButtonPtr Nothing 4 []
+                      , I.Do (I.Store False (O.LocalReference iButtonPtrPtr @loc.n1) (O.LocalReference iButtonPtr @lhs.ctlinstrid) Nothing 4 [])
+                      -- button->
+                      , @loc.n3 := I.Load False (O.LocalReference iButtonPtrPtr @loc.n1) Nothing 4 []
+                      -- lpVtbl
+                      , @loc.n4 := I.GetElementPtr True (O.LocalReference iButtonPtr @loc.n3) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                      -- ->
+                      , @loc.n5 := I.Load False (O.LocalReference iButtonVtblPtrPtr @loc.n4) Nothing 4 []
+                      -- propname at particular index
+                      , @loc.n6 := I.GetElementPtr True (O.LocalReference iButtonVtblPtr @loc.n5) [C.Int 32 0 & O.ConstantOperand, C.Int 32 @loc.idxish & O.ConstantOperand] []
+                      , @loc.n7 := I.Load False (O.LocalReference iButtonSetWidth @loc.n6) Nothing 4 []
+                      -- ready an IButton* to pass as param
+                      , @loc.n8 := I.Load False (O.LocalReference iButtonPtrPtr @loc.n1) Nothing 4 []
+                      -- ( call )
+                      , @loc.n9 := I.Call False x86_stdcallcc []
+                                     (O.LocalReference iButtonSetWidth @loc.n7 & Right)
+                                     [(O.LocalReference iButtonPtr @loc.n8, [])
+                                     , (O.ConstantOperand (C.Float (Float.Double 400.0)), []) -- FIXME parameterize
+                                     ]
+                                     [] []
+                      ] & Seq.fromList
+                    else
+                      Seq.empty
+       
 
 {
 ptr = flip T.PointerType (AddrSpace 0)
@@ -437,7 +471,7 @@ form_show_ref =
   & A.GlobalDefinition
 addbtn =
   G.Function L.External V.Default x86_stdcallcc []
-             hwnd (N.Name "AddButton") ([G.Parameter iFormPtr (N.UnName 1) []], False)
+             iButtonPtr (N.Name "AddButton") ([G.Parameter iFormPtr (N.UnName 1) []], False)
              [] Nothing 0 Nothing
              []
   & A.GlobalDefinition
@@ -534,6 +568,7 @@ mkStartup () =
         [] Nothing 0 Nothing
         blocks
       & A.GlobalDefinition
+    -- FIXME defns here versus loc.newForm's global definitions.
     defns = [iForm, iFormVtbl, startup, newForm]
     mod = A.defaultModule { A.moduleDefinitions = defns }
     filename = relFile "form-startup.ll"
