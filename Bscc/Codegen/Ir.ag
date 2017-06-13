@@ -44,7 +44,7 @@ import Control.Monad.Trans.Error (ErrorT, runErrorT)
 import qualified Data.ByteString as B
 import qualified Data.Char as Char
 import Data.Foldable (toList)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromJust, isJust)
 import Data.Monoid ((<>))
 import Data.Sequence ((<|), (|>)) -- FIXME can I take this from monoid?
 import qualified Data.Sequence as Seq
@@ -367,7 +367,23 @@ SEM SNewProp
        loc.n9 = N.UnName (fromIntegral @loc.n9wip :: Word)
        loc.vtblIdx = let (VtableIndex vtblIdx) = @vtblIdx.self in vtblIdx
        loc.idxish = fromIntegral @loc.vtblIdx
-       lhs.init = if (@name == mkSymbolName "Width") && (@loc.idxish /= 99999)
+       -- FIXME: this isn't general purpose enough i.e. can only coerce literals not results of binary operators.
+       -- TODO: to support such, note that coercion might require some instructions (e.g. alloc and call?); then it would return a N.UnName as opposed to e.g. a simple ast literal.
+       -- TODO: share coercion code with e.g. let statement?  call statement?
+
+       loc.param =
+         case @ty.self of
+           SDouble ->
+             case @val.self of
+               SDoubleLit val _ ->
+                 O.ConstantOperand (C.Float (Float.Double val))
+                 & Just
+               SIntegerLit val _ ->
+                 O.ConstantOperand (C.Float (Float.Double (realToFrac val)))
+                 & Just
+               _ -> Nothing
+           _ -> Nothing
+       lhs.init = if (@loc.idxish /= 99999) && (isJust (trace ("loc.param is: " ++ show @loc.param) @loc.param))
                     then
                       [
                         @loc.n1 := I.Alloca iButtonPtr Nothing 4 []
@@ -387,7 +403,7 @@ SEM SNewProp
                       , @loc.n9 := I.Call False x86_stdcallcc []
                                      (O.LocalReference iButtonSetWidth @loc.n7 & Right)
                                      [(O.LocalReference iButtonPtr @loc.n8, [])
-                                     , (O.ConstantOperand (C.Float (Float.Double 10000.0)), []) -- FIXME parameterize
+                                     , (fromJust @loc.param, []) -- FIXME parameterize
                                      ]
                                      [] []
                       ] & Seq.fromList
@@ -506,10 +522,14 @@ iButtonVtblRef = T.NamedTypeReference (N.Name "struct.IButtonVtbl")
 iButtonVtblPtr = iButtonVtblRef & ptr
 iButtonVtblPtrPtr = iButtonVtblPtr & ptr
 iButtonSetCaption = T.FunctionType T.i32 [iButtonPtr, ptr T.i16] False & ptr
+iButtonSetTop = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iButtonSetLeft = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iButtonSetWidth = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iButtonSetHeight = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iButtonVtbl =
   [ iButtonSetCaption
+  , iButtonSetTop
+  , iButtonSetLeft
   , iButtonSetWidth
   , iButtonSetHeight
   ]

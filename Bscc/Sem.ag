@@ -362,8 +362,10 @@ libvbstdProtos = toSymbolTable $ map (\x -> (Nothing, SymbolProc x)) procs
 buttonVtbl :: SymbolTable
 buttonVtbl =
   [ (VtableIndex 0 & Just, SymbolProp (mkSymbolName "Caption") SString)
-  , (VtableIndex 1 & Just, SymbolProp (mkSymbolName "Width") SDouble)
-  , (VtableIndex 2 & Just, SymbolProp (mkSymbolName "Height") SDouble)
+  , (VtableIndex 1 & Just, SymbolProp (mkSymbolName "Top") SDouble)
+  , (VtableIndex 2 & Just, SymbolProp (mkSymbolName "Left") SDouble)
+  , (VtableIndex 3 & Just, SymbolProp (mkSymbolName "Width") SDouble)
+  , (VtableIndex 4 & Just, SymbolProp (mkSymbolName "Height") SDouble)
   ]
   & toSymbolTable
 
