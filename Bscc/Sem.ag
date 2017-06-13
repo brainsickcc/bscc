@@ -193,7 +193,7 @@ SEM ClassHeaderBlock
 getvtbl :: String -> SymbolTable
 getvtbl "VB.CommandButton" = buttonVtbl
 getvtbl "VB.Form" = formVtbl
-getvtbl _ = mempty
+getvtbl x = SymTable.insert Nothing (SymbolVariable (mkSymbolName $ "Missing symtable for " ++ x) SVariant) mempty
 }
 
 ATTR ClassHeaderBlocks [ | | wip USE {:} {[]}: SNewClassHeaderBlocks ]
@@ -213,7 +213,7 @@ SEM ClassHeaderBlockPart
       loc.vtblEntry =
         case SymTable.lookup @name @lhs.symbolTableForVtbl of
           Just (Just idx, SymbolProp name ty) -> (idx, name, ty)
-          Nothing -> error ("property not found in vtable: " ++ show @name)
+          _ -> (VtableIndex 99999, mkSymbolName "DUMMY", SVariant) -- error ("property not found in vtable: " ++ show @name ++ "\n" ++ show @lhs.symbolTableForVtbl)
       loc.ty = let (_, _, ty) = @loc.vtblEntry in ty
       loc.vtblIdx = let (idx, _, _) = @loc.vtblEntry in idx
       val.symbolTable = SymTable.empty -- this is read because of the expr.  this isn't a symbol (property) that we export.

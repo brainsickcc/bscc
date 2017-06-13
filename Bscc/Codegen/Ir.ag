@@ -366,9 +366,8 @@ SEM SNewProp
        loc.n9wip : UNIQUEREF counter
        loc.n9 = N.UnName (fromIntegral @loc.n9wip :: Word)
        loc.vtblIdx = let (VtableIndex vtblIdx) = @vtblIdx.self in vtblIdx
-       -- FIXME: loc.idxish = fromIntegral @loc.vtblIdx
-       loc.idxish = 1 -- for Width -- FIXME
-       lhs.init = if @name == mkSymbolName "Width"
+       loc.idxish = fromIntegral @loc.vtblIdx
+       lhs.init = if (@name == mkSymbolName "Width") && (@loc.idxish /= 99999)
                     then
                       [
                         @loc.n1 := I.Alloca iButtonPtr Nothing 4 []
@@ -388,7 +387,7 @@ SEM SNewProp
                       , @loc.n9 := I.Call False x86_stdcallcc []
                                      (O.LocalReference iButtonSetWidth @loc.n7 & Right)
                                      [(O.LocalReference iButtonPtr @loc.n8, [])
-                                     , (O.ConstantOperand (C.Float (Float.Double 400.0)), []) -- FIXME parameterize
+                                     , (O.ConstantOperand (C.Float (Float.Double 10000.0)), []) -- FIXME parameterize
                                      ]
                                      [] []
                       ] & Seq.fromList
