@@ -529,12 +529,7 @@ iFormVtbl = [ iFormLoad
             & Just & A.TypeDefinition (N.Name "struct.IFormVtbl")
 
 iButton = iCtrl "Button"
-iButtonRef = iCtrlRef "Button"
 iButtonPtr = iCtrlPtr "Button"
-iButtonPtrPtr = iCtrlPtrPtr "Button"
-iButtonVtblRef = iCtrlVtblRef "Button"
-iButtonVtblPtr = iCtrlVtblPtr "Button"
-iButtonVtblPtrPtr = iCtrlVtblPtrPtr "Button"
 
 iButtonSetCaption = T.FunctionType T.i32 [iButtonPtr, ptr T.i16] False & ptr
 iButtonSetTop = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
@@ -552,12 +547,7 @@ iButtonVtbl =
   & Just & A.TypeDefinition (N.Name "struct.IButtonVtbl")
 
 iLabel = iCtrl "Label"
-iLabelRef = iCtrlRef "Label"
 iLabelPtr = iCtrlPtr "Label"
-iLabelPtrPtr = iCtrlPtrPtr "Label"
-iLabelVtblRef = iCtrlVtblRef "Label"
-iLabelVtblPtr = iCtrlVtblPtr "Label"
-iLabelVtblPtrPtr = iCtrlVtblPtrPtr "Label"
 
 iLabelSetCaption = T.FunctionType T.i32 [iLabelPtr, ptr T.i16] False & ptr
 iLabelSetTop = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
