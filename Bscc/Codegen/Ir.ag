@@ -232,22 +232,8 @@ SEM SModule
                 -- loc.uniqueN : UNIQUEREF counter
                 loc.startup = mkStartup ()
 
-                -- loc.traceit = trace ("TRACING: " ++ show @loc.buttonanalysisret)
-                --                     (Seq.empty)
-
-                -- loc.propHeaderTrace = trace (show @loc.propHeader) ""
-                -- loc.propHeader = 
-
-                -- loc.bar = @buttonanalysis.val
-                -- loc.addonebutton =
-                --   I.Do (I.Call False x86_stdcallcc []
-                --                (C.GlobalReference (T.FunctionType hwnd [iFormPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
-                --                [(O.LocalReference iFormPtr (N.UnName 11), [])]
-                --                [] [])
                 loc.buttonsBlock =
                   G.BasicBlock (N.UnName 12)
-                    -- (map (const @loc.addonebutton) @firstbutton)
-                    -- (addonebuttonandsetcaptionetc @firstbutton.self @buttonsetcaption.operandEtc @buttonsetwidth.operandEtc @buttonsetheight.operandEtc)
                     (toList @header.init)
                     (I.Do (I.Br (N.UnName 999) []))
 
