@@ -297,11 +297,11 @@ SEM SModule
                       [] Nothing 0 Nothing
                       @loc.newFormBlocks
                     & A.GlobalDefinition
-                  , iForm, iFormVtbl, hwnd__, malloc, iButton, iButtonVtbl
+                  , iForm, iFormVtbl, hwnd__, malloc
+                  , iButton, iButtonVtbl, addbtn, iLabel, iLabelVtbl, addlbl
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
                   , form_load_ref, form_show_ref
                   , form_vtbl
-                  , addbtn
                   ]
                   & Seq.fromList
 
@@ -316,20 +316,32 @@ SEM SNewClassHeaderBlock
   | SNewClassHeaderBlock
        loc.ctlinstridWip : UNIQUEREF counter
        loc.ctlinstrid = N.UnName (fromIntegral @loc.ctlinstridWip)
+       loc.constructorNameAndTy =
+         case @classname of
+           "VB.CommandButton" -> ("AddButton", "Button")
+           "VB.Label" -> ("AddLabel", "Label")
+           "VB.Form" -> ("UNUSED-FOR-THE-FORM", "Form")
+           classname -> error ("IR: unsupported class name " ++ classname)
+       loc.constructorName = let (constructorName, _) = @loc.constructorNameAndTy in constructorName
+       loc.classty = let (_, ty) = @loc.constructorNameAndTy in ty
        loc.create =
-         -- FIXME: don't call AddButton if @classname isn't VB.CommandButton!!!!!
-         [ @loc.ctlinstrid :=
-             I.Call False x86_stdcallcc []
-             (C.GlobalReference (T.FunctionType iButtonPtr [iFormPtr] False) (N.Name "AddButton") & O.ConstantOperand & Right)
-             [(O.LocalReference iFormPtr (N.UnName 11), [])]
-             [] []
-         ]
-         & Seq.fromList
+         if @classname == "VB.Form"
+           then
+             [] & Seq.fromList
+           else
+             [ @loc.ctlinstrid :=
+               I.Call False x86_stdcallcc []
+               (C.GlobalReference (T.FunctionType (iCtrlPtr @loc.classty) [iFormPtr] False) (N.Name @loc.constructorName) & O.ConstantOperand & Right)
+               [(O.LocalReference iFormPtr (N.UnName 11), [])]
+               [] []
+             ] & Seq.fromList
       loc.setprops = @props.init
       lhs.init = @loc.create <> @props.init
 
 ATTR SNewProps [ ctlinstrid: {N.Name} | | init USE {<>} {Seq.empty}: {Seq.Seq (I.Named I.Instruction)} ]
 ATTR SNewProp  [ ctlinstrid: {N.Name} | | init: {Seq.Seq (I.Named I.Instruction)} ]
+ATTR SNewProps [ classty: {String} | | ]
+ATTR SNewProp  [ classty: {String} | | ]
 
 SEM SNewProp
    | SNewPropSimple
@@ -372,30 +384,31 @@ SEM SNewProp
        lhs.init = if (@loc.idxish /= 99999) && (isJust (trace ("loc.param is: " ++ show @loc.param) @loc.param))
                     then
                       [
-                        @loc.n1 := I.Alloca iButtonPtr Nothing 4 []
-                      , I.Do (I.Store False (O.LocalReference iButtonPtrPtr @loc.n1) (O.LocalReference iButtonPtr @lhs.ctlinstrid) Nothing 4 [])
+                        @loc.n1 := I.Alloca (iCtrlPtr @lhs.classty) Nothing 4 []
+                      , I.Do (I.Store False (O.LocalReference (iCtrlPtrPtr @lhs.classty) @loc.n1) (O.LocalReference (iCtrlPtr @lhs.classty) @lhs.ctlinstrid) Nothing 4 [])
                       -- button->
-                      , @loc.n3 := I.Load False (O.LocalReference iButtonPtrPtr @loc.n1) Nothing 4 []
+                      , @loc.n3 := I.Load False (O.LocalReference (iCtrlPtrPtr @lhs.classty) @loc.n1) Nothing 4 []
                       -- lpVtbl
-                      , @loc.n4 := I.GetElementPtr True (O.LocalReference iButtonPtr @loc.n3) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                      , @loc.n4 := I.GetElementPtr True (O.LocalReference (iCtrlPtr @lhs.classty) @loc.n3) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
                       -- ->
-                      , @loc.n5 := I.Load False (O.LocalReference iButtonVtblPtrPtr @loc.n4) Nothing 4 []
+                      , @loc.n5 := I.Load False (O.LocalReference (iCtrlVtblPtrPtr @lhs.classty) @loc.n4) Nothing 4 []
                       -- propname at particular index
-                      , @loc.n6 := I.GetElementPtr True (O.LocalReference iButtonVtblPtr @loc.n5) [C.Int 32 0 & O.ConstantOperand, C.Int 32 @loc.idxish & O.ConstantOperand] []
-                      , @loc.n7 := I.Load False (O.LocalReference iButtonSetWidth @loc.n6) Nothing 4 []
+                      , @loc.n6 := I.GetElementPtr True (O.LocalReference (iCtrlVtblPtr @lhs.classty) @loc.n5) [C.Int 32 0 & O.ConstantOperand, C.Int 32 @loc.idxish & O.ConstantOperand] []
+                      -- FIXME: hard coded iButtonSetWidth
+                      , @loc.n7 := I.Load False (O.LocalReference (iButtonSetWidth) @loc.n6) Nothing 4 []
                       -- ready an IButton* to pass as param
-                      , @loc.n8 := I.Load False (O.LocalReference iButtonPtrPtr @loc.n1) Nothing 4 []
+                      , @loc.n8 := I.Load False (O.LocalReference (iCtrlPtrPtr @lhs.classty) @loc.n1) Nothing 4 []
                       -- ( call )
                       , @loc.n9 := I.Call False x86_stdcallcc []
-                                     (O.LocalReference iButtonSetWidth @loc.n7 & Right)
-                                     [(O.LocalReference iButtonPtr @loc.n8, [])
-                                     , (fromJust @loc.param, []) -- FIXME parameterize
+                                     (O.LocalReference (iButtonSetWidth) @loc.n7 & Right)
+                                     [(O.LocalReference (iCtrlPtr @lhs.classty) @loc.n8, [])
+                                     , (fromJust @loc.param, [])
                                      ]
                                      [] []
                       ] & Seq.fromList
                     else
                       Seq.empty
-       
+
 
 {
 ptr = flip T.PointerType (AddrSpace 0)
@@ -476,18 +489,35 @@ addbtn =
              [] Nothing 0 Nothing
              []
   & A.GlobalDefinition
+addlbl =
+  G.Function L.External V.Default x86_stdcallcc []
+             iLabelPtr (N.Name "AddLabel") ([G.Parameter iFormPtr (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
 
 i8Ptr = ptr T.i8
 
-iForm = [ptr (T.NamedTypeReference (N.Name "struct.IFormVtbl"))]
-        & T.StructureType False
-        & Just & A.TypeDefinition (N.Name "struct.IForm")
-iFormRef = T.NamedTypeReference (N.Name "struct.IForm")
-iFormPtr = iFormRef & ptr
-iFormPtrPtr = iFormPtr & ptr
-iFormVtblRef = T.NamedTypeReference (N.Name "struct.IFormVtbl")
-iFormVtblPtr = iFormVtblRef & ptr
-iFormVtblPtrPtr = iFormVtblPtr & ptr
+iCtrl name =
+  [ptr (T.NamedTypeReference (N.Name ("struct.I" ++ name ++ "Vtbl")))]
+   & T.StructureType False
+   & Just & A.TypeDefinition (N.Name ("struct.I" ++ name))
+iCtrlRef name =
+  T.NamedTypeReference (N.Name ("struct.I" ++ name))
+iCtrlPtr name = iCtrlRef name & ptr
+iCtrlPtrPtr name = iCtrlPtr name & ptr
+iCtrlVtblRef name = T.NamedTypeReference (N.Name ("struct.I" ++ name ++ "Vtbl"))
+iCtrlVtblPtr name = iCtrlVtblRef name & ptr
+iCtrlVtblPtrPtr name = iCtrlVtblPtr name & ptr
+
+iForm = iCtrl "Form"
+iFormRef = iCtrlRef "Form"
+iFormPtr = iCtrlPtr "Form"
+iFormPtrPtr = iCtrlPtrPtr "Form"
+iFormVtblRef = iCtrlVtblRef "Form"
+iFormVtblPtr = iCtrlVtblPtr "Form"
+iFormVtblPtrPtr = iCtrlVtblPtrPtr "Form"
+
 iFormLoad = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormShow = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormVtbl = [ iFormLoad
@@ -497,16 +527,14 @@ iFormVtbl = [ iFormLoad
             & T.StructureType False
             & Just & A.TypeDefinition (N.Name "struct.IFormVtbl")
 
+iButton = iCtrl "Button"
+iButtonRef = iCtrlRef "Button"
+iButtonPtr = iCtrlPtr "Button"
+iButtonPtrPtr = iCtrlPtrPtr "Button"
+iButtonVtblRef = iCtrlVtblRef "Button"
+iButtonVtblPtr = iCtrlVtblPtr "Button"
+iButtonVtblPtrPtr = iCtrlVtblPtrPtr "Button"
 
-iButton = [ptr (T.NamedTypeReference (N.Name "struct.IButtonVtbl"))]
-        & T.StructureType False
-        & Just & A.TypeDefinition (N.Name "struct.IButton")
-iButtonRef = T.NamedTypeReference (N.Name "struct.IButton")
-iButtonPtr = iButtonRef & ptr
-iButtonPtrPtr = iButtonPtr & ptr
-iButtonVtblRef = T.NamedTypeReference (N.Name "struct.IButtonVtbl")
-iButtonVtblPtr = iButtonVtblRef & ptr
-iButtonVtblPtrPtr = iButtonVtblPtr & ptr
 iButtonSetCaption = T.FunctionType T.i32 [iButtonPtr, ptr T.i16] False & ptr
 iButtonSetTop = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iButtonSetLeft = T.FunctionType T.i32 [iButtonPtr, T.FloatingPointType 64 T.IEEE] False & ptr
@@ -521,6 +549,30 @@ iButtonVtbl =
   ]
   & T.StructureType False
   & Just & A.TypeDefinition (N.Name "struct.IButtonVtbl")
+
+iLabel = iCtrl "Label"
+iLabelRef = iCtrlRef "Label"
+iLabelPtr = iCtrlPtr "Label"
+iLabelPtrPtr = iCtrlPtrPtr "Label"
+iLabelVtblRef = iCtrlVtblRef "Label"
+iLabelVtblPtr = iCtrlVtblPtr "Label"
+iLabelVtblPtrPtr = iCtrlVtblPtrPtr "Label"
+
+iLabelSetCaption = T.FunctionType T.i32 [iLabelPtr, ptr T.i16] False & ptr
+iLabelSetTop = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iLabelSetLeft = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iLabelSetWidth = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iLabelSetHeight = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iLabelVtbl =
+  [ iLabelSetCaption
+  , iLabelSetTop
+  , iLabelSetLeft
+  , iLabelSetWidth
+  , iLabelSetHeight
+  ]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "struct.ILabelVtbl")
+
 
 mkStartup :: () -> (A.Module, RelFile)
 mkStartup () =
