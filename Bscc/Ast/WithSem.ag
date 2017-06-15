@@ -138,6 +138,7 @@ DATA SType
    | SBoolean
    | SDouble
    | SInteger
+   | SLong
    | SString
    | SVariant
 
@@ -167,6 +168,7 @@ TYPE SExprs = [SExpr]
 DATA SExpr
    | SDoubleLit  val: Double  ty: SType
    | SStringLit  val: String  ty: SType
-   | SIntegerLit  val: Integer  ty: SType
+   | SIntegerLit  val: Integer  ty: SType -- TODO: finite val.  similarly for long
+   | SLongLit  val: Integer  ty: SType
    | SIdentExpr  name: SymbolName  ty: SType
    | SAdd x: SExpr  y: SExpr  ty: SType

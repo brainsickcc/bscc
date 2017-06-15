@@ -368,7 +368,7 @@ SEM SNewProp
        -- FIXME: this isn't general purpose enough i.e. can only coerce literals not results of binary operators.
        -- TODO: to support such, note that coercion might require some instructions (e.g. alloc and call?); then it would return a N.UnName as opposed to e.g. a simple ast literal.
        -- TODO: share coercion code with e.g. let statement?  call statement?
-
+       --       SExpr already has fileLevelDecls, loadInstrs, and operand.
        loc.param =
          case @ty.self of
            SDouble ->
@@ -376,8 +376,14 @@ SEM SNewProp
                SDoubleLit val _ ->
                  O.ConstantOperand (C.Float (Float.Double val))
                  & Just
-               SIntegerLit val _ ->
+               SLongLit val _ ->
                  O.ConstantOperand (C.Float (Float.Double (realToFrac val)))
+                 & Just
+               _ -> Nothing
+           SLong ->
+             case @val.self of
+               SLongLit val _ ->
+                 O.ConstantOperand (C.Int 32 val)
                  & Just
                _ -> Nothing
            _ -> Nothing
@@ -554,12 +560,16 @@ iLabelSetTop = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] F
 iLabelSetLeft = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iLabelSetWidth = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iLabelSetHeight = T.FunctionType T.i32 [iLabelPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iLabelSetForeColor = T.FunctionType T.i32 [iLabelPtr, T.i32] False & ptr
+iLabelSetBackColor = T.FunctionType T.i32 [iLabelPtr, T.i32] False & ptr
 iLabelVtbl =
   [ iLabelSetCaption
   , iLabelSetTop
   , iLabelSetLeft
   , iLabelSetWidth
   , iLabelSetHeight
+  , iLabelSetForeColor
+  , iLabelSetBackColor
   ]
   & T.StructureType False
   & Just & A.TypeDefinition (N.Name "struct.ILabelVtbl")
@@ -717,6 +727,9 @@ SEM SType
   | SInteger  loc.ty = error "Ir SType | SInteger: ty"
               loc.defaultValish = error "Ir SType | SInteger: defaultValish"
               lhs.defaultVal = O.ConstantOperand @loc.defaultValish
+  | SLong  loc.ty = T.i32
+           loc.defaultValish = C.Int 32 0
+           lhs.defaultVal = O.ConstantOperand @loc.defaultValish
   | SString  loc.ty = (T.PointerType (T.IntegerType 16) (AddrSpace 0))
              loc.defaultValish = C.Null @loc.ty
              lhs.defaultVal = O.ConstantOperand @loc.defaultValish
@@ -793,6 +806,11 @@ SEM SExpr
     loc.operand = O.ConstantOperand (C.Float (Float.Double @val))
     lhs.operandEtc = (@loc.operand, [])
   | SIntegerLit
+    lhs.fileLevelDecls = Seq.empty
+    loc.loadInstrs = Seq.empty
+    loc.operand = O.ConstantOperand (C.Int 16 @val)
+    lhs.operandEtc = (@loc.operand, [])
+  | SLongLit
     lhs.fileLevelDecls = Seq.empty
     loc.loadInstrs = Seq.empty
     loc.operand = O.ConstantOperand (C.Int 32 @val)
@@ -943,6 +961,7 @@ SEM SExpr
   | SDoubleLit  lhs.usedNonLocalProcs = Set.empty
   | SStringLit  lhs.usedNonLocalProcs = Set.empty
   | SIntegerLit  lhs.usedNonLocalProcs = Set.empty
+  | SLongLit  lhs.usedNonLocalProcs = Set.empty
   | SIdentExpr  lhs.usedNonLocalProcs = Set.empty
   | SAdd  lhs.usedNonLocalProcs = Set.union @x.usedNonLocalProcs @y.usedNonLocalProcs
   -- A call expression could be non-empty

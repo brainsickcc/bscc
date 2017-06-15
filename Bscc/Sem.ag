@@ -240,6 +240,7 @@ SEM Type
   | Boolean  lhs.typedAst = error "Sem: Type: Boolean" -- TODO
   | Double  lhs.typedAst = SDouble
   | Integer  lhs.typedAst = SInteger
+  | Long  lhs.typedAst = SLong
   | String  lhs.typedAst = SString
   | Variant  lhs.typedAst = SVariant
 
@@ -377,6 +378,8 @@ labelVtbl =
   , (VtableIndex 2 & Just, SymbolProp (mkSymbolName "Left") SDouble)
   , (VtableIndex 3 & Just, SymbolProp (mkSymbolName "Width") SDouble)
   , (VtableIndex 4 & Just, SymbolProp (mkSymbolName "Height") SDouble)
+  , (VtableIndex 5 & Just, SymbolProp (mkSymbolName "ForeColor") SLong)
+  , (VtableIndex 6 & Just, SymbolProp (mkSymbolName "BackColor") SLong)
   ]
   & toSymbolTable
 
@@ -477,6 +480,7 @@ SEM Expr
   | CallExpr  lhs.translated = error "Sem: Expr: CallExpr" -- TODO
   | DoubleLit  lhs.translated = SDoubleLit @val SDouble
   | IntegerLit  lhs.translated = SIntegerLit @val SInteger
+  | LongLit  lhs.translated = SLongLit @val SLong
   | StringLit  lhs.translated = SStringLit @val SString
   -- FIXME error handling
   | IdentExpr lhs.translated = case SymTable.lookup @name @lhs.symbolTable of
@@ -509,4 +513,5 @@ SEM SExpr
   | SDoubleLit  lhs.ty = @ty.self
   | SStringLit  lhs.ty = @ty.self
   | SIntegerLit  lhs.ty = @ty.self
+  | SLongLit  lhs.ty = @ty.self
   | SIdentExpr  lhs.ty = @ty.self

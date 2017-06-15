@@ -104,6 +104,7 @@ kw s = tokenAccepter (\tok -> case tok of
                          TKwFalse | s == "False" -> Just ()
                          TKwIf | s == "If" -> Just ()
                          TKwInteger | s == "Integer" -> Just ()
+                         TKwLong | s == "Long" -> Just ()
                          TKwOption | s == "Option" -> Just ()
                          TKwPrivate | s == "Private" -> Just ()
                          TKwPublic | s == "Public" -> Just ()
@@ -131,6 +132,7 @@ kwExplicit :: Parser ()
 kwFalse :: Parser ()
 kwIf :: Parser ()
 kwInteger :: Parser ()
+kwLong :: Parser ()
 kwOption :: Parser ()
 kwPrivate :: Parser ()
 kwPublic :: Parser ()
@@ -154,6 +156,7 @@ kwExplicit = kw "Explicit"
 kwFalse = kw "False"
 kwIf = kw "If"
 kwInteger = kw "Integer"
+kwLong = kw "Long"
 kwOption = kw "Option"
 kwPrivate = kw "Private"
 kwPublic = kw "Public"
@@ -203,9 +206,10 @@ booleanLit = tokenAccepter (\tok -> case tok of
                                _ -> Nothing)
             <?> "boolean literal"
 
+-- TODO: various integral types
 integerLit :: Parser Expr
 integerLit = tokenAccepter (\tok -> case tok of
-                               TIntegerLit i -> Just $ IntegerLit i
+                               TLongLit i -> Just $ LongLit i
                                _ -> Nothing)
             <?> "integer literal"
 

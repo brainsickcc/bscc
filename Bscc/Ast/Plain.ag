@@ -144,6 +144,7 @@ DATA Type
    | Boolean
    | Double
    | Integer
+   | Long
    | String
    | Variant
 
@@ -183,5 +184,6 @@ DATA Expr
    | DoubleLit  val: Double
    | IdentExpr  name: SymbolName
    | IntegerLit  val: Integer -- FIXME int16?
+   | LongLit  val: Integer -- FIXME int32?
    | StringLit  val: String
    | Add  x: Expr  y: Expr

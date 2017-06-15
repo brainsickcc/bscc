@@ -49,6 +49,7 @@ data TokenNoPos =
   | TKwFalse
   | TKwIf
   | TKwInteger
+  | TKwLong
   | TKwOption
   | TKwPrivate
   | TKwPublic
@@ -59,7 +60,8 @@ data TokenNoPos =
   | TKwTrue
   -- | Literal (except boolean literals which are keywords)s
   | TDoubleLit Double
-  | TIntegerLit Integer
+  | TIntegerLit Integer -- TODO: fixed size int.
+  | TLongLit Integer -- Ditto.
   | TStringLit String
   -- | Symbol
   | TSym Char

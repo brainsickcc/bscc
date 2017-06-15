@@ -134,6 +134,7 @@ kwMap = Map.fromList (map (\(a, b) -> (mkSymbolName a, b))
                        ("False", TKwFalse),
                        ("If", TKwIf),
                        ("Integer", TKwInteger),
+                       ("Long", TKwLong),
                        ("Option", TKwOption),
                        ("Private", TKwPrivate),
                        ("Public", TKwPublic),
@@ -161,13 +162,13 @@ integerLit =
   where
     dec = do
       i <- try (optional (char '-') *>  many1 (oneOf "0123456789"))
-      return $ Just (TIntegerLit (read i))
+      return $ Just (TLongLit (read i))
     hex = do
       _ <- char '&'
       _ <- char 'H'
       i <- many1 (oneOf "0123456789ABCDEF")
       _ <- char '&'
-      return $ Just (TIntegerLit (read ("0x" ++ i)))
+      return $ Just (TLongLit (read ("0x" ++ i)))
 
 -- | Recognise a string literal, returning such a token.
 stringLit :: Parser (Maybe TokenNoPos)
