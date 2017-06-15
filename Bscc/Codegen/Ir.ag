@@ -381,6 +381,8 @@ SEM SNewProp
                  & Just
                _ -> Nothing
            _ -> Nothing
+       -- FIXME TYPE
+       loc.setPropTy = T.FunctionType T.i32 [iCtrlPtr @lhs.classty, @ty.ty] False & ptr
        lhs.init = if (@loc.idxish /= 99999) && (isJust (trace ("loc.param is: " ++ show @loc.param) @loc.param))
                     then
                       [
@@ -394,13 +396,12 @@ SEM SNewProp
                       , @loc.n5 := I.Load False (O.LocalReference (iCtrlVtblPtrPtr @lhs.classty) @loc.n4) Nothing 4 []
                       -- propname at particular index
                       , @loc.n6 := I.GetElementPtr True (O.LocalReference (iCtrlVtblPtr @lhs.classty) @loc.n5) [C.Int 32 0 & O.ConstantOperand, C.Int 32 @loc.idxish & O.ConstantOperand] []
-                      -- FIXME: hard coded iButtonSetWidth
-                      , @loc.n7 := I.Load False (O.LocalReference (iButtonSetWidth) @loc.n6) Nothing 4 []
+                      , @loc.n7 := I.Load False (O.LocalReference @loc.setPropTy @loc.n6) Nothing 4 []
                       -- ready an IButton* to pass as param
                       , @loc.n8 := I.Load False (O.LocalReference (iCtrlPtrPtr @lhs.classty) @loc.n1) Nothing 4 []
                       -- ( call )
                       , @loc.n9 := I.Call False x86_stdcallcc []
-                                     (O.LocalReference (iButtonSetWidth) @loc.n7 & Right)
+                                     (O.LocalReference @loc.setPropTy @loc.n7 & Right)
                                      [(O.LocalReference (iCtrlPtr @lhs.classty) @loc.n8, [])
                                      , (fromJust @loc.param, [])
                                      ]
