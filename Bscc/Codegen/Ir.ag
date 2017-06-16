@@ -302,6 +302,7 @@ SEM SModule
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
                   , form_load_ref, form_show_ref
                   , form_vtbl
+                  , variant, unionDotAnonDot8, unionDotAnonDot9, unionDotAnon
                   ]
                   & Seq.fromList
 
@@ -431,6 +432,34 @@ hwndPtr = hwnd & ptr
 form = [iFormRef, hwnd]
        & T.StructureType False
        & Just & A.TypeDefinition (N.Name "struct.Form")
+
+
+-- this is only accurate on 32-bit
+-- %struct.tagVARIANT = type { %union.anon.8 }
+-- %union.anon.8 = type { %struct.anon.9 }
+-- %struct.anon.9 = type { i16, i16, i16, i16, %union.anon }
+-- %union.anon = type { i64 }
+variantref = T.NamedTypeReference (N.Name "struct.tagVARIANT")
+variant =
+  [T.NamedTypeReference (N.Name "union.anon.8")]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "struct.tagVARIANT")
+unionDotAnonDot8 =
+  [T.NamedTypeReference (N.Name "union.anon.9")]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "union.anon.8")
+unionDotAnonDot9 =
+  [T.i16, T.i16, T.i16, T.i16, T.NamedTypeReference (N.Name "union.anon")]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "union.anon.9")
+unionDotAnon =
+  [T.i64]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "union.anon")
+
+
+
+
 
 -- form_vtbl = C.Struct Nothing False [C.GlobalReference iFormLoad (N.Name "Form_Load"), C.GlobalReference iFormShow (N.Name "Form_Show")]
 -- -- TODO: can I just say form_vtbl has type iFormVtbl?                  HERE below i mean.   Then wouldn't have to bitcast elsewhere
@@ -733,7 +762,10 @@ SEM SType
   | SString  loc.ty = (T.PointerType (T.IntegerType 16) (AddrSpace 0))
              loc.defaultValish = C.Null @loc.ty
              lhs.defaultVal = O.ConstantOperand @loc.defaultValish
-  | SVariant  loc.ty = error "Ir SType | SVariant: ty"
+  -- FIXME: do we need initialization code (similar to or shared with expr)?
+  -- How to deal with the fact that local variables are variant structs
+  -- but params are variant*?
+  | SVariant  loc.ty = variantref
               loc.defaultValish = error "Ir SType | SVariant: defaultValish"
               lhs.defaultVal = O.ConstantOperand @loc.defaultValish
 
@@ -814,6 +846,11 @@ SEM SExpr
     lhs.fileLevelDecls = Seq.empty
     loc.loadInstrs = Seq.empty
     loc.operand = O.ConstantOperand (C.Int 32 @val)
+    lhs.operandEtc = (@loc.operand, [])
+  | SMissing
+    lhs.fileLevelDecls = Seq.empty
+    loc.loadInstrs = Seq.empty
+    loc.operand = O.ConstantOperand (C.Int 32 666) -- FIXME
     lhs.operandEtc = (@loc.operand, [])
   | SStringLit  -- Determine a unique register to store the string
                 -- contents into.
@@ -963,6 +1000,7 @@ SEM SExpr
   | SIntegerLit  lhs.usedNonLocalProcs = Set.empty
   | SLongLit  lhs.usedNonLocalProcs = Set.empty
   | SIdentExpr  lhs.usedNonLocalProcs = Set.empty
+  | SMissing  lhs.usedNonLocalProcs = Set.empty
   | SAdd  lhs.usedNonLocalProcs = Set.union @x.usedNonLocalProcs @y.usedNonLocalProcs
   -- A call expression could be non-empty
 

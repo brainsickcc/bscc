@@ -357,7 +357,14 @@ SEM Project
 libvbstdProtos :: SymbolTable
 libvbstdProtos = toSymbolTable $ map (\x -> (Nothing, SymbolProc x)) procs
   where procs = [SProcPrototype (mkSymbolName "MsgBox")
-                                [SArgDef (mkSymbolName "Prompt") SString]
+                                [ SArgDef (mkSymbolName "Prompt") SString
+                                ]
+                                -- [ SArgDef (mkSymbolName "Prompt") SVariant
+                                -- , SArgDef (mkSymbolName "Buttons") SVariant
+                                -- , SArgDef (mkSymbolName "Title") SVariant
+                                -- , SArgDef (mkSymbolName "HelpFile") SVariant
+                                -- , SArgDef (mkSymbolName "Context") SVariant
+                                -- ]
                                 Nothing (mkSymbolName "VBA")
                                 (mkSymbolName "Interaction")]
 
@@ -501,6 +508,8 @@ SEM CoercedExpr
            loc.coercionErrs =
              if @expr'.ty == @loc.targetType
              then mempty
+             else if @loc.targetType == SVariant
+             then mempty
              else Seq.singleton $
                   CallArgumentWrongType @expr.self @loc.targetType
            lhs.typedAst =
@@ -515,3 +524,4 @@ SEM SExpr
   | SIntegerLit  lhs.ty = @ty.self
   | SLongLit  lhs.ty = @ty.self
   | SIdentExpr  lhs.ty = @ty.self
+  | SMissing  lhs.ty = @ty.self

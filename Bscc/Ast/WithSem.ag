@@ -172,3 +172,4 @@ DATA SExpr
    | SLongLit  val: Integer  ty: SType
    | SIdentExpr  name: SymbolName  ty: SType
    | SAdd x: SExpr  y: SExpr  ty: SType
+   | SMissing  ty: SType
