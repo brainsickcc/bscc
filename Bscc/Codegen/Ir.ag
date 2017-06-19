@@ -204,8 +204,8 @@ SEM SModule
                 lhs.ir = [(A.defaultModule
                            {
                              A.moduleDefinitions =
-                               @loc.fileLevelDecls <> @procs.definition
-                               <> @loc.newForm
+                               @loc.newForm
+                               <> @loc.fileLevelDecls <> @procs.definition
                                -- <> @loc.traceit
                                & toList
                            },
@@ -298,11 +298,11 @@ SEM SModule
                       @loc.newFormBlocks
                     & A.GlobalDefinition
                   , iForm, iFormVtbl, hwnd__, malloc
+                  , variant, unionDotAnon, structDotAnon, unionDotAnonDotZero
                   , iButton, iButtonVtbl, addbtn, iLabel, iLabelVtbl, addlbl
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
                   , form_load_ref, form_show_ref
                   , form_vtbl
-                  , variant, unionDotAnonDot8, unionDotAnonDot9, unionDotAnon
                   ]
                   & Seq.fromList
 
@@ -435,27 +435,33 @@ form = [iFormRef, hwnd]
 
 
 -- this is only accurate on 32-bit
--- %struct.tagVARIANT = type { %union.anon.8 }
--- %union.anon.8 = type { %struct.anon.9 }
--- %struct.anon.9 = type { i16, i16, i16, i16, %union.anon }
--- %union.anon = type { i64 }
+-- %struct.tagVARIANT = type { %union.anon }
+-- %union.anon = type { %struct.anon }
+-- %struct.anon = type { i16, i16, i16, i16, %union.anon.0 }
+-- %union.anon.0 = type { i64 }
+
+llbstr = ptr T.i16
 variantref = T.NamedTypeReference (N.Name "struct.tagVARIANT")
 variant =
-  [T.NamedTypeReference (N.Name "union.anon.8")]
+  [T.NamedTypeReference (N.Name "union.anon")]
   & T.StructureType False
   & Just & A.TypeDefinition (N.Name "struct.tagVARIANT")
-unionDotAnonDot8 =
-  [T.NamedTypeReference (N.Name "union.anon.9")]
-  & T.StructureType False
-  & Just & A.TypeDefinition (N.Name "union.anon.8")
-unionDotAnonDot9 =
-  [T.i16, T.i16, T.i16, T.i16, T.NamedTypeReference (N.Name "union.anon")]
-  & T.StructureType False
-  & Just & A.TypeDefinition (N.Name "union.anon.9")
+uniondotanonref = T.NamedTypeReference (N.Name "union.anon")
 unionDotAnon =
-  [T.i64]
+  [T.NamedTypeReference (N.Name "struct.anon")]
   & T.StructureType False
   & Just & A.TypeDefinition (N.Name "union.anon")
+structdotanonref = T.NamedTypeReference (N.Name "struct.anon")
+structDotAnon =
+  [T.i16, T.i16, T.i16, T.i16, T.NamedTypeReference (N.Name "union.anon.0")]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "struct.anon")
+uniondotanondotzeroref = T.NamedTypeReference (N.Name "union.anon.0")
+unionDotAnonDotZero =
+  [T.i64]
+  & T.StructureType False
+  & Just & A.TypeDefinition (N.Name "union.anon.0")
+
 
 
 
@@ -656,7 +662,8 @@ mkStartup () =
         blocks
       & A.GlobalDefinition
     -- FIXME defns here versus loc.newForm's global definitions.
-    defns = [iForm, iFormVtbl, startup, newForm]
+    defns = [iForm, iFormVtbl, startup, newForm
+            ]
     mod = A.defaultModule { A.moduleDefinitions = defns }
     filename = relFile "form-startup.ll"
   in
@@ -785,9 +792,9 @@ ATTR SInProcStmts [ | | instr USE {<>} {Seq.empty}:
 ATTR SInProcStmt  [ | | instr: {Seq.Seq (I.Named I.Instruction)} ]
 SEM SInProcStmt
   | SIf  lhs.instr = error "Ir: SIf"
-  | SCall  lhs.instr = I.Do (I.Call False x86_stdcallcc [] @proc.asCallable
-                                    (toList @args.operandEtc) [] [])
-                       & Seq.singleton
+  | SCall  lhs.instr = @args.loadInstrs
+                       |> I.Do (I.Call False x86_stdcallcc [] @proc.asCallable
+                                       (toList @args.operandEtc) [] [])
   -- FIXME alignment
   | SLet  lhs.instr =
             @expr.loadInstrs
@@ -800,10 +807,10 @@ SEM SInProcStmt
           loc.src = @expr.operand
 
 ATTR SExprs [ | | operandEtc USE {<|} {Seq.empty}:
-                    {Seq.Seq (O.Operand, [ParameterAttribute])} ]
+                    {Seq.Seq (O.Operand, [ParameterAttribute])}
+                  loadInstrs USE {<>} {Seq.empty}: {Seq.Seq (I.Named I.Instruction)}]
 
 ATTR SExpr [ | | fileLevelDecls: {Seq.Seq G.Global}
-                 -- FIXME: use this loadInstrs where required (everywhere operand or operandEtc is used)
                  loadInstrs: {Seq.Seq (I.Named I.Instruction)}
                  operand: {O.Operand}
                  operandEtc: {(O.Operand, [ParameterAttribute])} ]
@@ -871,11 +878,87 @@ SEM SExpr
                 loc.contentsType =
                      T.ArrayType (fromIntegral $ length @loc.word16s)
                                  (T.IntegerType 16)
-                loc.loadInstrs = Seq.empty
+
+
+                -- loc.n1wip : UNIQUEREF counter
+                -- loc.n1 = N.UnName (fromIntegral @loc.n1wip :: Word)
+                -- loc.n2wip : UNIQUEREF counter
+                -- loc.n2 = N.UnName (fromIntegral @loc.n2wip :: Word)
+                loc.n3wip : UNIQUEREF counter
+                loc.n3 = N.UnName (fromIntegral @loc.n3wip :: Word)
+                loc.n4wip : UNIQUEREF counter
+                loc.n4 = N.UnName (fromIntegral @loc.n4wip :: Word)
+                -- loc.n5wip : UNIQUEREF counter
+                -- loc.n5 = N.UnName (fromIntegral @loc.n5wip :: Word)
+                loc.n6wip : UNIQUEREF counter
+                loc.n6 = N.UnName (fromIntegral @loc.n6wip :: Word)
+                loc.n7wip : UNIQUEREF counter
+                loc.n7 = N.UnName (fromIntegral @loc.n7wip :: Word)
+                loc.n8wip : UNIQUEREF counter
+                loc.n8 = N.UnName (fromIntegral @loc.n8wip :: Word)
+                -- loc.n9wip : UNIQUEREF counter
+                -- loc.n9 = N.UnName (fromIntegral @loc.n9wip :: Word)
+                loc.n10wip : UNIQUEREF counter
+                loc.n10 = N.UnName (fromIntegral @loc.n10wip :: Word)
+                loc.n11wip : UNIQUEREF counter
+                loc.n11 = N.UnName (fromIntegral @loc.n11wip :: Word)
+                loc.n12wip : UNIQUEREF counter
+                loc.n12 = N.UnName (fromIntegral @loc.n12wip :: Word)
+                loc.n13wip : UNIQUEREF counter
+                loc.n13 = N.UnName (fromIntegral @loc.n13wip :: Word)
+
+                -- loc.loadInstrs = Seq.empty
+                -- loc.operand = @loc.operandStr
+
+                -- FIXME: the following loadInstrs is only
+                -- if we're coercing to a Variant.
+                loc.loadInstrs =
+                  [
+                    @loc.n3 := I.Alloca variantref Nothing 8 []
+
+                  , @loc.n6 := I.GetElementPtr True (O.LocalReference (ptr variantref) @loc.n3) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                  , @loc.n7 := I.BitCast (O.LocalReference (ptr uniondotanonref) @loc.n6) (ptr structdotanonref) []
+                  , @loc.n8 := I.GetElementPtr True (O.LocalReference (ptr structdotanonref) @loc.n7) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                  , I.Do (I.Store False (O.LocalReference (ptr T.i16) @loc.n8) (C.Int 16 8 & O.ConstantOperand) Nothing 8 []) -- value 8 stored is VT_BSTR
+
+
+                  -- , @loc.n2 := I.Alloca llptrbstr Nothing 4 []
+                  -- , @loc.n5 := I.Call x86_stdcallcc llbstr @"\01_SysAllocString@4"(llbstr getelementptr inbounds ([6 x i16], [6 x i16]* @.str, i32 0, i32 0))
+                  -- , I.Do (I.Store False (llbstr* %2) (llbstr %5) Nothing 4 [])
+                  -- , @loc.n9 := I.Load llbstr, llbstr* %2, align 4
+                  -- %9 should be of type llbstr.  but try uses loc.operandStr instead.
+
+                  -- 10 and 11 here are the same as 6 and 7?
+                  , @loc.n10 := I.GetElementPtr True (O.LocalReference (ptr variantref) @loc.n3) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
+                  , @loc.n11 := I.BitCast (O.LocalReference (ptr uniondotanonref) @loc.n10) (ptr structdotanonref) []
+                  , @loc.n12 := I.GetElementPtr True (O.LocalReference (ptr structdotanonref) @loc.n11) [C.Int 32 0 & O.ConstantOperand, C.Int 32 4 & O.ConstantOperand] []
+                  , @loc.n13 := I.BitCast (O.LocalReference (ptr uniondotanondotzeroref) @loc.n12) (ptr llbstr) []
+                  -- , I.Do (I.Store False (O.LocalReference (ptr llbstr) @loc.n13) (O.LocalReference llbstr @loc.n9) Nothing 8 [])
+                  , I.Do (I.Store False (O.LocalReference (ptr llbstr) @loc.n13) @loc.operandStr Nothing 8 [])
+
+                  ] & Seq.fromList
+
+
+                -- So, I'm going to need to coerce this string into a variant.
+                -- I think I have a plan.  But first, my objectives: share code
+                -- between all coercions: e.g. call parameters, Let assignments,
+                -- Add.
+                --
+                -- Plan: sem checks for validity.  Then it tags (attribute not new node)
+                -- with type Coercsion, with constructor for example IntToFloat or StringToVariant.
+                -- Then IR doesn't have to recalculate the required coercion type, and can just
+                -- derive code for it.
+                -- Remember still to share the code between the above examples.
+                -- And remember that expressions have instructions (e.g. for Add),
+                -- and not just operands.
+
+                loc.operand = O.LocalReference (ptr variantref) @loc.n3
+
                 -- Whenever any generated code needs the string, we
                 -- refer to it via a (typed) pointer.
-                loc.operand =
+                loc.operandStr =
     {
+      -- FIXME: @register isn't a BSTR it's a LPWSTR(?).
       O.ConstantOperand $ C.GetElementPtr
                             True
                             (C.GlobalReference @loc.contentsType @register)

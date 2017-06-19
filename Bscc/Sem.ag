@@ -357,7 +357,8 @@ SEM Project
 libvbstdProtos :: SymbolTable
 libvbstdProtos = toSymbolTable $ map (\x -> (Nothing, SymbolProc x)) procs
   where procs = [SProcPrototype (mkSymbolName "MsgBox")
-                                [ SArgDef (mkSymbolName "Prompt") SString
+                                [ -- SArgDef (mkSymbolName "Prompt") SString
+                                  SArgDef (mkSymbolName "Prompt") SVariant
                                 ]
                                 -- [ SArgDef (mkSymbolName "Prompt") SVariant
                                 -- , SArgDef (mkSymbolName "Buttons") SVariant
