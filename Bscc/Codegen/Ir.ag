@@ -316,7 +316,16 @@ ATTR SNewClassHeaderBlock [ | | init: {Seq.Seq (I.Named I.Instruction)} ]
 SEM SNewClassHeaderBlock
   | SNewClassHeaderBlock
        loc.ctlinstridWip : UNIQUEREF counter
-       loc.ctlinstrid = N.UnName (fromIntegral @loc.ctlinstridWip)
+       loc.ctlinstrid =
+         {
+           if @classname == "VB.Form"
+             then
+               -- TODO: would be simpler and more consistent if we moved form creation code here
+               -- For now just reusing the same iFormPtr we use to create the controls.
+               N.UnName 11
+             else
+               N.UnName (fromIntegral @loc.ctlinstridWip)
+         }
        loc.constructorNameAndTy =
          case @classname of
            "VB.CommandButton" -> ("AddButton", "Button")
@@ -328,6 +337,7 @@ SEM SNewClassHeaderBlock
        loc.create =
          if @classname == "VB.Form"
            then
+             -- TODO: would be simpler and more consistent if we moved form creation code here
              [] & Seq.fromList
            else
              [ @loc.ctlinstrid :=
@@ -568,8 +578,13 @@ iFormVtblPtrPtr = iCtrlVtblPtrPtr "Form"
 
 iFormLoad = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormShow = T.FunctionType T.i32 [iFormPtr] False & ptr
+iFormSetScaleWidth = T.FunctionType T.i32 [iFormPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iFormSetScaleHeight = T.FunctionType T.i32 [iFormPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+-- FIXME: why can't this be worked out from the information in Sem?
 iFormVtbl = [ iFormLoad
             , iFormShow
+            , iFormSetScaleWidth
+            , iFormSetScaleHeight
             -- , iFormControlsDotAdd
             ]
             & T.StructureType False

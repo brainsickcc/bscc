@@ -395,7 +395,9 @@ formVtbl :: SymbolTable
 formVtbl =
   [ (VtableIndex 0 & Just, SProcPrototype (mkSymbolName "Load") [] Nothing (mkSymbolName "VB") (mkSymbolName "Form") & SymbolProc)
   , (VtableIndex 1 & Just, SProcPrototype (mkSymbolName "Show") [] Nothing (mkSymbolName "VB") (mkSymbolName "Form") & SymbolProc)
-  , (VtableIndex 2 & Just, SProcPrototype (mkSymbolName "Load")
+  , (VtableIndex 2 & Just, SymbolProp (mkSymbolName "ScaleWidth") SDouble)
+  , (VtableIndex 3 & Just, SymbolProp (mkSymbolName "ScaleHeight") SDouble)
+  , (VtableIndex 4 & Just, SProcPrototype (mkSymbolName "ControlsDotAdd")
                                           [ SArgDef (mkSymbolName "ProgID") SString
                                           , SArgDef (mkSymbolName "name") SString
                                           , SArgDef (mkSymbolName "container") SVariant
