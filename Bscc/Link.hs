@@ -46,6 +46,7 @@ link target objFiles outputName = do
   let objFiles' = reverse objFiles -- FIXME link order because of startup form
   gcc_version' <- gcc_version target
   prefix <- Dir.prefix
+  putStrLn ("looking for vbstd in: " ++ prefix ++ "/" ++ Triplet.str target ++ "/sys-root/mingw/lib/")
   let cmd = Triplet.str target ++ "-ld"
       libdir = "/usr/" ++ Triplet.str target ++ "/sys-root/mingw/lib"
       libdir_gcc = "/usr/lib/gcc/" ++ Triplet.str target ++ "/" ++ gcc_version'
@@ -61,6 +62,7 @@ link target objFiles outputName = do
                "-luserenv",
                "-lws2_32",
                "-lvbgui",
+               "-loleaut32",
                -- MinGW GCC by default links against all of these
                -- libraries:
                "-L" ++ libdir_gcc,

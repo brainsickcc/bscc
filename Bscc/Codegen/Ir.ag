@@ -297,7 +297,7 @@ SEM SModule
                       [] Nothing 0 Nothing
                       @loc.newFormBlocks
                     & A.GlobalDefinition
-                  , iForm, iFormVtbl, hwnd__, malloc
+                  , iForm, iFormVtbl, hwnd__, malloc, sysallocstring
                   , variant, unionDotAnon, structDotAnon, unionDotAnonDotZero
                   , iButton, iButtonVtbl, addbtn, iLabel, iLabelVtbl, addlbl
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
@@ -510,6 +510,12 @@ form_vtbl =
 malloc =
   G.Function L.External V.Default CC.C []
              i8Ptr (N.Name "malloc") ([G.Parameter T.i32 (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+sysallocstring =
+  G.Function L.External V.Default x86_stdcallcc []
+             (ptr T.i16) (N.Name "SysAllocString") ([G.Parameter (ptr T.i16) (N.UnName 1) []], False)
              [] Nothing 0 Nothing
              []
   & A.GlobalDefinition
@@ -772,7 +778,7 @@ SEM SType
   -- FIXME: do we need initialization code (similar to or shared with expr)?
   -- How to deal with the fact that local variables are variant structs
   -- but params are variant*?
-  | SVariant  loc.ty = variantref
+  | SVariant  loc.ty = ptr variantref
               loc.defaultValish = error "Ir SType | SVariant: defaultValish"
               lhs.defaultVal = O.ConstantOperand @loc.defaultValish
 
@@ -896,8 +902,8 @@ SEM SExpr
                 loc.n7 = N.UnName (fromIntegral @loc.n7wip :: Word)
                 loc.n8wip : UNIQUEREF counter
                 loc.n8 = N.UnName (fromIntegral @loc.n8wip :: Word)
-                -- loc.n9wip : UNIQUEREF counter
-                -- loc.n9 = N.UnName (fromIntegral @loc.n9wip :: Word)
+                loc.n9wip : UNIQUEREF counter
+                loc.n9 = N.UnName (fromIntegral @loc.n9wip :: Word)
                 loc.n10wip : UNIQUEREF counter
                 loc.n10 = N.UnName (fromIntegral @loc.n10wip :: Word)
                 loc.n11wip : UNIQUEREF counter
@@ -907,9 +913,9 @@ SEM SExpr
                 loc.n13wip : UNIQUEREF counter
                 loc.n13 = N.UnName (fromIntegral @loc.n13wip :: Word)
 
-                -- loc.loadInstrs = Seq.empty
-                -- loc.operand = @loc.operandStr
+                loc.sysallocstring = C.GlobalReference (T.FunctionType (ptr T.i16) [ptr T.i16] False) (N.Name "SysAllocString") & O.ConstantOperand & Right
 
+                -- loc.loadInstrs = Seq.empty
                 -- FIXME: the following loadInstrs is only
                 -- if we're coercing to a Variant.
                 loc.loadInstrs =
@@ -920,21 +926,14 @@ SEM SExpr
                   , @loc.n7 := I.BitCast (O.LocalReference (ptr uniondotanonref) @loc.n6) (ptr structdotanonref) []
                   , @loc.n8 := I.GetElementPtr True (O.LocalReference (ptr structdotanonref) @loc.n7) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
                   , I.Do (I.Store False (O.LocalReference (ptr T.i16) @loc.n8) (C.Int 16 8 & O.ConstantOperand) Nothing 8 []) -- value 8 stored is VT_BSTR
-
-
-                  -- , @loc.n2 := I.Alloca llptrbstr Nothing 4 []
-                  -- , @loc.n5 := I.Call x86_stdcallcc llbstr @"\01_SysAllocString@4"(llbstr getelementptr inbounds ([6 x i16], [6 x i16]* @.str, i32 0, i32 0))
-                  -- , I.Do (I.Store False (llbstr* %2) (llbstr %5) Nothing 4 [])
-                  -- , @loc.n9 := I.Load llbstr, llbstr* %2, align 4
-                  -- %9 should be of type llbstr.  but try uses loc.operandStr instead.
+                  , @loc.n9 := I.Call False x86_stdcallcc [] @loc.sysallocstring [(@loc.operandStr, [])] [] []
 
                   -- 10 and 11 here are the same as 6 and 7?
                   , @loc.n10 := I.GetElementPtr True (O.LocalReference (ptr variantref) @loc.n3) [C.Int 32 0 & O.ConstantOperand, C.Int 32 0 & O.ConstantOperand] []
                   , @loc.n11 := I.BitCast (O.LocalReference (ptr uniondotanonref) @loc.n10) (ptr structdotanonref) []
                   , @loc.n12 := I.GetElementPtr True (O.LocalReference (ptr structdotanonref) @loc.n11) [C.Int 32 0 & O.ConstantOperand, C.Int 32 4 & O.ConstantOperand] []
                   , @loc.n13 := I.BitCast (O.LocalReference (ptr uniondotanondotzeroref) @loc.n12) (ptr llbstr) []
-                  -- , I.Do (I.Store False (O.LocalReference (ptr llbstr) @loc.n13) (O.LocalReference llbstr @loc.n9) Nothing 8 [])
-                  , I.Do (I.Store False (O.LocalReference (ptr llbstr) @loc.n13) @loc.operandStr Nothing 8 [])
+                  , I.Do (I.Store False (O.LocalReference (ptr llbstr) @loc.n13) (O.LocalReference llbstr @loc.n9) Nothing 8 [])
 
                   ] & Seq.fromList
 
@@ -952,6 +951,8 @@ SEM SExpr
                 -- And remember that expressions have instructions (e.g. for Add),
                 -- and not just operands.
 
+                -- loc.operand = @loc.operandStr
+                -- The following loc.operand is only if we're coercing to variant
                 loc.operand = O.LocalReference (ptr variantref) @loc.n3
 
                 -- Whenever any generated code needs the string, we

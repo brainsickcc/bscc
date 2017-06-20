@@ -1,4 +1,3 @@
-
 -- Copyright © 2012 Iain Nicol
 
 -- This program is free software: you can redistribute it and/or modify
@@ -176,6 +175,7 @@ doNormalMode options userFiles = do
     tmpDir <- absolutizePath $ Path.absRel tmpDirString
     -- libbsccts provides required startup code.
     libbscctsIrPath <- getDataFileName $ relFile "libbsccts/startup.ll"
+    putStrLn ("Startup code is in file: " ++ show libbscctsIrPath)
     let libbscctsObjPath = tmpDir </> relFile "libbsccts-startup.ll"
     Mach.withModuleFromLlAsmFile libbscctsIrPath $ \mod' -> do
       Mach.codegen mod' targetMachine libbscctsObjPath
