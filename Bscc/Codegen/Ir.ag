@@ -269,8 +269,6 @@ SEM SModule
                       , I.Do (I.Store False
                                       (O.LocalReference iFormVtblPtrPtr (N.UnName 7))
                                       (C.BitCast (C.GlobalReference iFormVtblRef (N.Name "form_vtbl")) iFormVtblPtr & O.ConstantOperand)
-                                      -- FIXME remove this dud attempt
-                                      -- (C.BitCast (C.GlobalReference (T.StructureType False [iFormLoad, iFormShow]) (N.Name "form_vtbl")) iFormVtblRef & O.ConstantOperand)
                                       Nothing 4 [])
                       -- -- f
                       , N.UnName 8 := I.Load False (O.LocalReference formPtrPtr (N.UnName 1)) Nothing 4 []
@@ -301,7 +299,7 @@ SEM SModule
                   , variant, unionDotAnon, structDotAnon, unionDotAnonDotZero
                   , iButton, iButtonVtbl, addbtn, iLabel, iLabelVtbl, addlbl
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
-                  , form_load_ref, form_show_ref
+                  , form_load_ref, form_show_ref, form_setscalewidth_ref, form_setscaleheight_ref
                   , form_vtbl
                   ]
                   & Seq.fromList
@@ -417,7 +415,15 @@ SEM SNewProp
                       -- ready an IButton* to pass as param
                       , @loc.n8 := I.Load False (O.LocalReference (iCtrlPtrPtr @lhs.classty) @loc.n1) Nothing 4 []
                       -- ( call )
-                      , @loc.n9 := I.Call False x86_stdcallcc []
+                      -- The following, and just the following call, crashes for setting the form's scalewidth or scaleheight.
+                      -- IS LOC.N7 NULL?????????????
+                      , @loc.n9 := I.Call False x86_stdcallcc (trace
+                                                                 (if @lhs.classty == "Form"
+                                                                    then
+                                                                      "FORM!!! " ++ show @loc.setPropTy
+                                                                    else
+                                                                      "boring control"
+                                                                  ) [])
                                      (O.LocalReference @loc.setPropTy @loc.n7 & Right)
                                      [(O.LocalReference (iCtrlPtr @lhs.classty) @loc.n8, [])
                                      , (fromJust @loc.param, [])
@@ -488,6 +494,7 @@ unionDotAnonDotZero =
 --             & A.GlobalAlias (N.Name "form_vtbl") L.Internal V.Default (T.StructureType False [])
 --             & A.GlobalDefinition
 
+-- TODO: use from libvbgui
 form_vtbl =
     A.GlobalDefinition 
             ( A.GlobalVariable 
@@ -501,7 +508,11 @@ form_vtbl =
                 -- iFormVtblRef
                 (T.StructureType
                         False
-                        [ iFormLoad, iFormShow ]
+                        [ iFormLoad, iFormShow
+                        , iFormSetScaleWidth
+                        , iFormSetScaleHeight
+                        -- , iFormControlsDotAdd
+                        ]
                 )
                 (Just
                     -- Crashed when I assigned this to a GlobalAlias.  Hence we wrap in a GlobalVariable.
@@ -510,6 +521,9 @@ form_vtbl =
                         False
                         [ C.GlobalReference iFormLoad (N.Name "Form_Load")
                         , C.GlobalReference iFormShow (N.Name "Form_Show")
+                        , C.GlobalReference iFormSetScaleWidth (N.Name "Form_SetScaleWidth")
+                        , C.GlobalReference iFormSetScaleWidth (N.Name "Form_SetScaleHeight")
+                        -- , TODO: ControlsDotAdd
                         ]
                     )
                 )
@@ -538,6 +552,22 @@ form_load_ref =
 form_show_ref =
   G.Function L.External V.Default x86_stdcallcc []
              T.i32 (N.Name "Form_Show") ([G.Parameter iFormPtr (N.UnName 1) []], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+form_setscalewidth_ref =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.i32 (N.Name "Form_SetScaleWidth") ([ G.Parameter iFormPtr (N.UnName 1) []
+                                                  , G.Parameter (T.FloatingPointType 64 T.IEEE) (N.UnName 2) []
+                                                  ], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
+form_setscaleheight_ref =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.i32 (N.Name "Form_SetScaleHeight") ([ G.Parameter iFormPtr (N.UnName 1) []
+                                                   , G.Parameter (T.FloatingPointType 64 T.IEEE) (N.UnName 2) []
+                                                   ], False)
              [] Nothing 0 Nothing
              []
   & A.GlobalDefinition
