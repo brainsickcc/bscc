@@ -219,6 +219,7 @@ SEM SModule
                 loc.fileLevelDecls = (@procs.fileLevelDecls <&> A.GlobalDefinition) <>
                                      @loc.declsUsedNonLocalProcs
                                      <> @topLevel.otherDecls
+                                     <> (@header.fileLevelDecls <&> A.GlobalDefinition)
                 loc.declsUsedNonLocalProcs =
                 {
                   @usedNonLocalProcs.importDeclaration
@@ -299,18 +300,22 @@ SEM SModule
                   , variant, unionDotAnon, structDotAnon, unionDotAnonDotZero
                   , iButton, iButtonVtbl, addbtn, iLabel, iLabelVtbl, addlbl
                   , form -- FIXME: this and hwnd aren't showing up in gened ll
-                  , form_load_ref, form_show_ref, form_setscalewidth_ref, form_setscaleheight_ref
+                  , form_load_ref, form_show_ref, form_setscalewidth_ref, form_setscaleheight_ref, form_setcaption_ref
                   , form_vtbl
                   ]
                   & Seq.fromList
 
 ATTR SNewClassHeader [ | | init: {Seq.Seq (I.Named I.Instruction)} ]
+ATTR SNewClassHeader [ | | fileLevelDecls: {Seq.Seq G.Global} ]
 SEM SNewClassHeader
   | SNewClassHeader
       lhs.init = @me.init <> @children.init
+      lhs.fileLevelDecls = @me.fileLevelDecls <> @children.fileLevelDecls
 
 ATTR SNewClassHeaderBlocks [ | | init USE {<>} {Seq.empty}: {Seq.Seq (I.Named I.Instruction)} ]
 ATTR SNewClassHeaderBlock [ | | init: {Seq.Seq (I.Named I.Instruction)} ]
+ATTR SNewClassHeaderBlocks [ | | fileLevelDecls USE {<>} {Seq.empty}: {Seq.Seq G.Global} ]
+ATTR SNewClassHeaderBlock [ | | fileLevelDecls: {Seq.Seq G.Global} ]
 SEM SNewClassHeaderBlock
   | SNewClassHeaderBlock
        loc.ctlinstridWip : UNIQUEREF counter
@@ -346,11 +351,14 @@ SEM SNewClassHeaderBlock
              ] & Seq.fromList
       loc.setprops = @props.init
       lhs.init = @loc.create <> @props.init
+      -- lhs.fileLevelDecls = trace ("HERE ARE THE DECLS: " ++ show @props.fileLevelDecls) @props.fileLevelDecls
 
 ATTR SNewProps [ ctlinstrid: {N.Name} | | init USE {<>} {Seq.empty}: {Seq.Seq (I.Named I.Instruction)} ]
 ATTR SNewProp  [ ctlinstrid: {N.Name} | | init: {Seq.Seq (I.Named I.Instruction)} ]
 ATTR SNewProps [ classty: {String} | | ]
 ATTR SNewProp  [ classty: {String} | | ]
+ATTR SNewProps [ | | fileLevelDecls USE {<>} {Seq.empty}: {Seq.Seq G.Global} ]
+ATTR SNewProp  [ | | fileLevelDecls: {Seq.Seq G.Global} ]
 
 SEM SNewProp
    | SNewPropSimple
@@ -395,10 +403,25 @@ SEM SNewProp
                  O.ConstantOperand (C.Int 32 val)
                  & Just
                _ -> Nothing
+           SString ->
+             case @val.self of
+               SStringLit _ _ ->
+                 @val.nonvariantoperand
+                 & Just
+               _ -> Nothing
            _ -> Nothing
+       lhs.fileLevelDecls =
+         case @ty.self of
+           SString ->
+             case @val.self of
+               SStringLit _ _ ->
+                 @val.fileLevelDecls
+           _ -> Seq.empty
        -- FIXME TYPE
        loc.setPropTy = T.FunctionType T.i32 [iCtrlPtr @lhs.classty, @ty.ty] False & ptr
-       lhs.init = if (@loc.idxish /= 99999) && (isJust (trace ("loc.param is: " ++ show @loc.param) @loc.param))
+       lhs.init = if (@loc.idxish /= 99999)
+                     -- && (isJust (trace ("loc.param is: " ++ show @loc.param) @loc.param))
+                     && (isJust @loc.param)
                     then
                       [
                         @loc.n1 := I.Alloca (iCtrlPtr @lhs.classty) Nothing 4 []
@@ -511,6 +534,7 @@ form_vtbl =
                         [ iFormLoad, iFormShow
                         , iFormSetScaleWidth
                         , iFormSetScaleHeight
+                        , iFormSetCaption
                         -- , iFormControlsDotAdd
                         ]
                 )
@@ -522,7 +546,8 @@ form_vtbl =
                         [ C.GlobalReference iFormLoad (N.Name "Form_Load")
                         , C.GlobalReference iFormShow (N.Name "Form_Show")
                         , C.GlobalReference iFormSetScaleWidth (N.Name "Form_SetScaleWidth")
-                        , C.GlobalReference iFormSetScaleWidth (N.Name "Form_SetScaleHeight")
+                        , C.GlobalReference iFormSetScaleHeight (N.Name "Form_SetScaleHeight")
+                        , C.GlobalReference iFormSetCaption (N.Name "Form_SetCaption")
                         -- , TODO: ControlsDotAdd
                         ]
                     )
@@ -571,6 +596,14 @@ form_setscaleheight_ref =
              [] Nothing 0 Nothing
              []
   & A.GlobalDefinition
+form_setcaption_ref =
+  G.Function L.External V.Default x86_stdcallcc []
+             T.i32 (N.Name "Form_SetCaption") ([ G.Parameter iFormPtr (N.UnName 1) []
+                                               , G.Parameter llbstr (N.UnName 2) []
+                                               ], False)
+             [] Nothing 0 Nothing
+             []
+  & A.GlobalDefinition
 addbtn =
   G.Function L.External V.Default x86_stdcallcc []
              iButtonPtr (N.Name "AddButton") ([G.Parameter iFormPtr (N.UnName 1) []], False)
@@ -610,11 +643,13 @@ iFormLoad = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormShow = T.FunctionType T.i32 [iFormPtr] False & ptr
 iFormSetScaleWidth = T.FunctionType T.i32 [iFormPtr, T.FloatingPointType 64 T.IEEE] False & ptr
 iFormSetScaleHeight = T.FunctionType T.i32 [iFormPtr, T.FloatingPointType 64 T.IEEE] False & ptr
+iFormSetCaption = T.FunctionType T.i32 [iFormPtr, llbstr] False & ptr
 -- FIXME: why can't this be worked out from the information in Sem?
 iFormVtbl = [ iFormLoad
             , iFormShow
             , iFormSetScaleWidth
             , iFormSetScaleHeight
+            , iFormSetCaption
             -- , iFormControlsDotAdd
             ]
             & T.StructureType False
@@ -864,6 +899,10 @@ ATTR SExprs [ | | operandEtc USE {<|} {Seq.empty}:
 ATTR SExpr [ | | fileLevelDecls: {Seq.Seq G.Global}
                  loadInstrs: {Seq.Seq (I.Named I.Instruction)}
                  operand: {O.Operand}
+                 -- FIXME: shouldn't need the following.  strings shouldn't
+                 -- by default be converted to variants.  coercion is
+                 -- different from raw value.
+                 nonvariantoperand: {O.Operand}
                  operandEtc: {(O.Operand, [ParameterAttribute])} ]
 SEM SExpr
   | SAdd
@@ -876,6 +915,7 @@ SEM SExpr
         |> (@loc.name := I.FAdd (I.NoFastMathFlags) (@x.operand) (@y.operand) [])
       loc.operand = O.LocalReference @ty.ty @loc.name
       lhs.operandEtc = (@loc.operand, [])
+      lhs.nonvariantoperand = error "FIXME: nonvariantoperand"
   | SIdentExpr
     lhs.fileLevelDecls = Seq.empty
     loc.uniqueN : UNIQUEREF counter
@@ -890,26 +930,31 @@ SEM SExpr
     -- loc.operand = O.ConstantOperand (C.Float (Float.Double 777.0))
     loc.myname = raw @name & map Char.toLower & N.Name
     lhs.operandEtc = (@loc.operand, [])
+    lhs.nonvariantoperand = error "FIXME: nonvariantoperand"
   | SDoubleLit
     lhs.fileLevelDecls = Seq.empty
     loc.loadInstrs = Seq.empty
     loc.operand = O.ConstantOperand (C.Float (Float.Double @val))
     lhs.operandEtc = (@loc.operand, [])
+    lhs.nonvariantoperand = error "FIXME: nonvariantoperand"
   | SIntegerLit
     lhs.fileLevelDecls = Seq.empty
     loc.loadInstrs = Seq.empty
     loc.operand = O.ConstantOperand (C.Int 16 @val)
     lhs.operandEtc = (@loc.operand, [])
+    lhs.nonvariantoperand = error "FIXME: nonvariantoperand"
   | SLongLit
     lhs.fileLevelDecls = Seq.empty
     loc.loadInstrs = Seq.empty
     loc.operand = O.ConstantOperand (C.Int 32 @val)
     lhs.operandEtc = (@loc.operand, [])
+    lhs.nonvariantoperand = error "FIXME: nonvariantoperand"
   | SMissing
     lhs.fileLevelDecls = Seq.empty
     loc.loadInstrs = Seq.empty
     loc.operand = O.ConstantOperand (C.Int 32 666) -- FIXME
     lhs.operandEtc = (@loc.operand, [])
+    lhs.nonvariantoperand = error "FIXME: nonvariantoperand"
   | SStringLit  -- Determine a unique register to store the string
                 -- contents into.
                 loc.uniqueN : UNIQUEREF counter
@@ -1010,6 +1055,7 @@ SEM SExpr
                             (C.GlobalReference @loc.contentsType @register)
                             [C.Int 64 0, C.Int 64 0]
     }
+                lhs.nonvariantoperand = @loc.operandStr
                 lhs.operandEtc = (@loc.operand, [])
 
 -- Support functions for translating string literals
