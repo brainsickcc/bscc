@@ -36,4 +36,4 @@ homepage = "https://www.brainsick.cc/"
 
 -- | @version@ field from our .cabal file.
 version :: String
-version = "0.2.0"
+version = "0.2.1"

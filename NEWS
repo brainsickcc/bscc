@@ -3,6 +3,9 @@ History of important or user visible changes
 Copyright © 2012 Iain Nicol
 See the end of the file for license conditions.
 
+* Changes in v0.2.1
+
+** The build process for bscc is now much more reliable (again).
 
 * Changes in v0.2.0
 

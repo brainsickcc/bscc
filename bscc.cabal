@@ -26,7 +26,7 @@ description:
 --   * the `bscc-setuphs' dependencies in this file.
 --   * `version' in bscc-setuphs.cabal
 --   * `version' in Bscc.ThisPackage.Info
-version:            0.2.0
+version:            0.2.1
 cabal-version:      >=1.18
 license:            AGPL-3
 license-file:       COPYING
@@ -118,7 +118,7 @@ executable bscc
 
     -- Keep dependencies in sync with the test-suite.
     base >= 4.7 && < 5,
-    bscc-setuphs == 0.2.0,
+    bscc-setuphs == 0.2.1,
     bytestring == 0.10.*,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
@@ -183,7 +183,7 @@ test-suite tests
     tasty-quickcheck == 0.8.*,
     -- Same as for bscc.
     base >= 4.7 && < 5,
-    bscc-setuphs == 0.2.0,
+    bscc-setuphs == 0.2.1,
     bytestring == 0.10.*,
     containers == 0.5.*,
     errors == 1.4.* && >= 1.4.2,
