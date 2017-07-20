@@ -28,7 +28,7 @@ bugsUrl = "https://www.brainsick.cc/bugs/"
 
 -- | @copyright@ field from our .cabal file.
 copyright :: String
-copyright = "© 2012, 2013 Iain Nicol"
+copyright = "© 2012, 2013, 2014, 2017 Iain Nicol"
 
 -- | @homepage@ field from our .cabal file.
 homepage :: String
